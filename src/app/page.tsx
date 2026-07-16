@@ -8,24 +8,32 @@ import { PdfViewer } from "@/features/pdf-viewer/PdfViewer";
 export default function HomePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
-  function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  async function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
 
     setError(null);
 
     if (!file) return;
 
-    const validation = validatePdfFile(file);
+    setIsValidating(true);
 
-    if (!validation.isValid) {
-      setSelectedFile(null);
-      setError(validation.message);
-      event.target.value = "";
-      return;
+    try {
+      const validation = await validatePdfFile(file);
+
+      if (!validation.isValid) {
+        setSelectedFile(null);
+        setError(validation.message);
+        input.value = "";
+        return;
+      }
+
+      setSelectedFile(file);
+    } finally {
+      setIsValidating(false);
     }
-
-    setSelectedFile(file);
   }
 
   function handleCloseDocument() {
@@ -37,7 +45,7 @@ export default function HomePage() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">Versão 0.2.0</span>
+          <span className="eyebrow">Versão 0.2.1</span>
           <h1>Professional PDF Editor</h1>
         </div>
         <button type="button" className="secondary-button" disabled>
@@ -59,15 +67,16 @@ export default function HomePage() {
               poderá visualizar as páginas, navegar e controlar o zoom.
             </p>
 
-            <label className="primary-button" htmlFor="pdf-file">
-              Selecionar PDF
+            <label className="primary-button" htmlFor="pdf-file" aria-disabled={isValidating}>
+              {isValidating ? "Verificando PDF…" : "Selecionar PDF"}
             </label>
             <input
               id="pdf-file"
               className="visually-hidden"
               type="file"
               accept="application/pdf,.pdf"
-              onChange={handleFileSelection}
+              onChange={(event) => void handleFileSelection(event)}
+              disabled={isValidating}
             />
 
             {error && (
