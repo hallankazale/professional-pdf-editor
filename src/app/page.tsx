@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useState } from "react";
 
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+import { validatePdfFile } from "@/core/files/validate-pdf-file";
 
 export default function HomePage() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -16,14 +16,10 @@ export default function HomePage() {
 
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setError("Selecione um arquivo PDF válido.");
-      event.target.value = "";
-      return;
-    }
+    const validation = validatePdfFile(file);
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setError("O arquivo ultrapassa o limite inicial de 50 MB.");
+    if (!validation.isValid) {
+      setError(validation.message);
       event.target.value = "";
       return;
     }
@@ -45,7 +41,9 @@ export default function HomePage() {
 
       <section className="workspace" aria-labelledby="upload-title">
         <div className="upload-card">
-          <span className="document-icon" aria-hidden="true">PDF</span>
+          <span className="document-icon" aria-hidden="true">
+            PDF
+          </span>
           <h2 id="upload-title">Abra seu documento</h2>
           <p>
             Nesta primeira etapa, o arquivo permanece no seu dispositivo. A
@@ -63,8 +61,14 @@ export default function HomePage() {
             onChange={handleFileSelection}
           />
 
-          {fileName && <p className="success-message">Arquivo selecionado: {fileName}</p>}
-          {error && <p className="error-message" role="alert">{error}</p>}
+          {fileName && (
+            <p className="success-message">Arquivo selecionado: {fileName}</p>
+          )}
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       </section>
     </main>
