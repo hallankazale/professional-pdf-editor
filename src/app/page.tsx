@@ -51,7 +51,7 @@ export default function HomePage() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">Versão 0.3.0</span>
+          <span className="eyebrow">Versão 0.4.0</span>
           <h1>Professional PDF Editor</h1>
         </div>
         <button
@@ -60,7 +60,7 @@ export default function HomePage() {
           disabled={!selectedFile}
           onClick={handleExport}
         >
-          Exportar cópia
+          Exportar original
         </button>
       </header>
 
@@ -74,8 +74,8 @@ export default function HomePage() {
             </span>
             <h2 id="upload-title">Abra seu documento</h2>
             <p>
-              O arquivo é processado localmente no navegador. Nesta etapa, você já
-              poderá visualizar as páginas, navegar e controlar o zoom.
+              O arquivo é processado localmente no navegador. Você pode visualizar,
+              editar blocos textuais e salvar uma nova versão do documento.
             </p>
 
             <label className="primary-button" htmlFor="pdf-file" aria-disabled={isValidating}>
