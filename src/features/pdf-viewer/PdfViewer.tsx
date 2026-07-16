@@ -4,6 +4,11 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
 import { exportEditedPdf, type PdfTextEdit } from "@/core/export/export-edited-pdf";
+import {
+  loadPdfEditSession,
+  savePdfEditSession,
+  type StoredPdfEditState,
+} from "@/core/session/pdf-edit-session";
 import { PdfInspectorPanel } from "./PdfInspectorPanel";
 import { PdfTextLayer } from "./PdfTextLayer";
 import type { InspectedTextItem, PdfPageTextStatus } from "./pdf-inspector.types";
@@ -37,6 +42,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<InspectedTextItem | null>(null);
   const [pageTextStatus, setPageTextStatus] = useState<PdfPageTextStatus>("loading");
   const [previewEdits, setPreviewEdits] = useState<PreviewState>({});
@@ -55,6 +61,14 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   );
   const selectedEditKey = selectedItem ? `${pageNumber}:${selectedItem.id}` : null;
   const selectedPreviewText = selectedEditKey ? previewEdits[selectedEditKey]?.text ?? null : null;
+  const totalPages = pdfDocument?.numPages ?? 0;
+  const editCount = Object.keys(previewEdits).length;
+
+  useEffect(() => {
+    const restoredEdits = loadPdfEditSession(file) as PreviewState;
+    setPreviewEdits(restoredEdits);
+    setStatusMessage(Object.keys(restoredEdits).length ? "Edições salvas restauradas." : null);
+  }, [file]);
 
   useEffect(() => {
     let activeDocument: PDFDocumentProxy | null = null;
@@ -66,7 +80,6 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setActivePage(null);
       setSelectedItem(null);
       setPageTextStatus("loading");
-      setPreviewEdits({});
       setUndoStack([]);
       setRedoStack([]);
 
@@ -106,17 +119,13 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   }, [file]);
 
   useEffect(() => {
-    const activePdfDocument = pdfDocument;
-    const canvasElement = canvasRef.current;
-
-    if (!activePdfDocument || !canvasElement) return;
+    const documentToRender = pdfDocument;
+    const canvasToRender = canvasRef.current;
+    if (!documentToRender || !canvasToRender) return;
 
     let cancelled = false;
 
-    async function renderPage(
-      documentToRender: PDFDocumentProxy,
-      canvasToRender: HTMLCanvasElement,
-    ) {
+    async function renderPage() {
       try {
         setIsLoading(true);
         setError(null);
@@ -126,7 +135,6 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
         const page = await documentToRender.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
-
         if (cancelled) return;
 
         const context = canvasToRender.getContext("2d", { alpha: false });
@@ -146,7 +154,6 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
         renderTaskRef.current = renderTask;
         await renderTask.promise;
-
         if (!cancelled) setActivePage(page);
       } catch (renderError) {
         if (renderError instanceof Error && renderError.name === "RenderingCancelledException") return;
@@ -156,16 +163,12 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       }
     }
 
-    void renderPage(activePdfDocument, canvasElement);
-
+    void renderPage();
     return () => {
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
   }, [pdfDocument, pageNumber, scale]);
-
-  const totalPages = pdfDocument?.numPages ?? 0;
-  const editCount = Object.keys(previewEdits).length;
 
   function goToPage(nextPage: number) {
     if (!totalPages) return;
@@ -177,25 +180,22 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   function handlePageSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsedPage = Number.parseInt(pageInput, 10);
-
     if (Number.isNaN(parsedPage)) {
       setPageInput(String(pageNumber));
       return;
     }
-
     goToPage(parsedPage);
   }
 
   function applyPreview(nextText: string) {
     if (!selectedItem || !selectedEditKey) return;
-
+    setStatusMessage(null);
     setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
     setRedoStack([]);
     setPreviewEdits((current) => {
       const next = { ...current };
-      if (nextText === selectedItem.text) {
-        delete next[selectedEditKey];
-      } else {
+      if (nextText === selectedItem.text) delete next[selectedEditKey];
+      else {
         next[selectedEditKey] = {
           id: selectedEditKey,
           pageNumber,
@@ -211,122 +211,96 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   function undo() {
     const previous = undoStack.at(-1);
     if (!previous) return;
-
     setRedoStack((current) => [...current, clonePreviewState(previewEdits)]);
     setPreviewEdits(previous);
     setUndoStack((current) => current.slice(0, -1));
+    setStatusMessage(null);
   }
 
   function redo() {
     const next = redoStack.at(-1);
     if (!next) return;
-
     setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
     setPreviewEdits(next);
     setRedoStack((current) => current.slice(0, -1));
+    setStatusMessage(null);
+  }
+
+  function handleSaveSession() {
+    savePdfEditSession(file, previewEdits as StoredPdfEditState);
+    setStatusMessage(editCount ? `${editCount} edição(ões) salvas no aparelho.` : "Sessão salva sem alterações.");
   }
 
   async function handleExportEdits() {
-    if (!editCount || isExporting) return;
-
+    if (isExporting) return;
     setIsExporting(true);
     setError(null);
+    setStatusMessage(null);
 
     try {
       await exportEditedPdf(file, Object.values(previewEdits));
+      setStatusMessage("PDF exportado para a pasta de downloads.");
     } catch {
-      setError("Não foi possível exportar as alterações deste PDF.");
+      setError("Não foi possível exportar este PDF.");
     } finally {
       setIsExporting(false);
     }
   }
 
   return (
-    <section className="editor-shell" aria-label="Visualizador de PDF">
+    <section className="editor-shell" aria-label="Editor de PDF">
       <div className="editor-toolbar">
-        <button type="button" className="toolbar-button" onClick={onClose}>
-          Trocar PDF
-        </button>
-
         <div className="file-summary" title={file.name}>
           <strong>{file.name}</strong>
           <span>{totalPages ? `${totalPages} página${totalPages > 1 ? "s" : ""}` : "Carregando…"}</span>
         </div>
 
-        <div className="toolbar-group" aria-label="Histórico de alterações">
-          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>
-            Desfazer
+        <div className="mobile-primary-actions">
+          <button type="button" className="toolbar-button" onClick={handleSaveSession}>
+            Salvar{editCount ? ` (${editCount})` : ""}
           </button>
-          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>
-            Refazer
+          <button type="button" className="primary-action" disabled={isExporting} onClick={() => void handleExportEdits()}>
+            {isExporting ? "Exportando…" : "Exportar"}
           </button>
         </div>
 
-        <div className="toolbar-group" aria-label="Navegação entre páginas">
-          <button type="button" className="toolbar-button" disabled={pageNumber <= 1 || isLoading} onClick={() => goToPage(pageNumber - 1)}>
-            Anterior
-          </button>
+        <div className="toolbar-group" aria-label="Histórico">
+          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>Desfazer</button>
+          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>Refazer</button>
+        </div>
 
+        <div className="toolbar-group" aria-label="Páginas">
+          <button type="button" className="toolbar-button square-button" disabled={pageNumber <= 1 || isLoading} onClick={() => goToPage(pageNumber - 1)} aria-label="Página anterior">‹</button>
           <form className="page-jump-form" onSubmit={handlePageSubmit}>
-            <label className="visually-hidden" htmlFor="page-number-input">Ir para página</label>
-            <input
-              id="page-number-input"
-              className="page-number-input"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={pageInput}
-              onChange={(event) => setPageInput(event.target.value.replace(/\D/g, ""))}
-              onBlur={() => setPageInput(String(pageNumber))}
-              disabled={!totalPages || isLoading}
-            />
+            <input className="page-number-input" inputMode="numeric" pattern="[0-9]*" value={pageInput} onChange={(event) => setPageInput(event.target.value.replace(/\D/g, ""))} onBlur={() => setPageInput(String(pageNumber))} disabled={!totalPages || isLoading} aria-label="Página atual" />
             <span className="page-indicator">/ {totalPages || "—"}</span>
           </form>
-
-          <button type="button" className="toolbar-button" disabled={!totalPages || pageNumber >= totalPages || isLoading} onClick={() => goToPage(pageNumber + 1)}>
-            Próxima
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={!totalPages || pageNumber >= totalPages || isLoading} onClick={() => goToPage(pageNumber + 1)} aria-label="Próxima página">›</button>
         </div>
 
-        <div className="toolbar-group" aria-label="Controle de zoom">
+        <div className="toolbar-group" aria-label="Zoom">
           <button type="button" className="toolbar-button square-button" disabled={scale <= MIN_SCALE || isLoading} onClick={() => setScale((current) => Math.max(MIN_SCALE, current - SCALE_STEP))} aria-label="Diminuir zoom">−</button>
           <span className="zoom-indicator">{Math.round(scale * 100)}%</span>
           <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
-        <button type="button" className="primary-action" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>
-          Editar seleção
-        </button>
-
-        <button type="button" className="primary-action" disabled={!editCount || isExporting} onClick={() => void handleExportEdits()}>
-          {isExporting ? "Exportando…" : `Salvar edições${editCount ? ` (${editCount})` : ""}`}
-        </button>
+        <button type="button" className="toolbar-button" onClick={onClose}>Trocar PDF</button>
+        <button type="button" className="primary-action edit-selection-button" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>Editar seleção</button>
       </div>
 
       {error && <p className="viewer-error" role="alert">{error}</p>}
+      {statusMessage && <p className="viewer-status" role="status">{statusMessage}</p>}
 
       <div className="editor-content">
         <div className="document-stage">
           {isLoading && <div className="loading-overlay" role="status">Processando página…</div>}
           <div className="pdf-page-stack">
             <canvas ref={canvasRef} className="pdf-canvas" aria-label={`Página ${pageNumber} do PDF`} />
-            <PdfTextLayer
-              page={activePage}
-              scale={scale}
-              selectedItemId={selectedItem?.id ?? null}
-              previewEdits={currentPageEdits}
-              onSelectItem={setSelectedItem}
-              onPageStatusChange={handlePageStatusChange}
-            />
+            <PdfTextLayer page={activePage} scale={scale} selectedItemId={selectedItem?.id ?? null} previewEdits={currentPageEdits} onSelectItem={setSelectedItem} onPageStatusChange={handlePageStatusChange} />
           </div>
         </div>
 
-        <PdfInspectorPanel
-          selectedItem={selectedItem}
-          pageStatus={pageTextStatus}
-          previewText={selectedPreviewText}
-          onApplyPreview={applyPreview}
-          onClearSelection={() => setSelectedItem(null)}
-        />
+        <PdfInspectorPanel selectedItem={selectedItem} pageStatus={pageTextStatus} previewText={selectedPreviewText} onApplyPreview={applyPreview} onClearSelection={() => setSelectedItem(null)} />
       </div>
     </section>
   );
