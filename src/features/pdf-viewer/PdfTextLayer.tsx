@@ -11,18 +11,21 @@ type PdfTextLayerProps = {
   page: PDFPageProxy | null;
   scale: number;
   selectedItemId: string | null;
+  previewEdits: Record<string, string>;
   onSelectItem: (item: InspectedTextItem) => void;
   onPageStatusChange: (status: PdfPageTextStatus) => void;
 };
 
 /**
  * Cria uma camada textual sobre o canvas sem modificar o PDF.
- * Além da seleção/cópia, expõe os metadados necessários ao modo de inspeção.
+ * As alterações são renderizadas apenas como prévia visual e ficam separadas
+ * do motor que futuramente fará a reescrita nativa do documento.
  */
 export function PdfTextLayer({
   page,
   scale,
   selectedItemId,
+  previewEdits,
   onSelectItem,
   onPageStatusChange,
 }: PdfTextLayerProps) {
@@ -56,19 +59,17 @@ export function PdfTextLayer({
         const width = Math.max(fontSize, (item.width || item.str.length * fontSize * 0.5) * scale);
         const height = Math.max(fontSize, (item.height || fontSize / scale) * scale);
 
-        return [
-          {
-            id: `${index}-${e}-${f}`,
-            text: item.str,
-            left: x,
-            top: y - fontSize,
-            fontSize,
-            angle,
-            fontFamily,
-            width,
-            height,
-          },
-        ];
+        return [{
+          id: `${index}-${e}-${f}`,
+          text: item.str,
+          left: x,
+          top: y - fontSize,
+          fontSize,
+          angle,
+          fontFamily,
+          width,
+          height,
+        }];
       });
 
       if (!cancelled) {
@@ -91,26 +92,31 @@ export function PdfTextLayer({
 
   return (
     <div className="pdf-text-layer" aria-label="Camada de texto selecionável">
-      {items.map((item) => (
-        <button
-          type="button"
-          key={item.id}
-          className={`pdf-text-item${selectedItemId === item.id ? " is-selected" : ""}`}
-          style={{
-            left: item.left,
-            top: item.top,
-            width: item.width,
-            minHeight: item.height,
-            fontSize: item.fontSize,
-            fontFamily: item.fontFamily,
-            transform: `rotate(${item.angle}deg)`,
-          }}
-          onClick={() => onSelectItem(item)}
-          title={`Inspecionar: ${item.text}`}
-        >
-          {item.text}
-        </button>
-      ))}
+      {items.map((item) => {
+        const previewText = previewEdits[item.id];
+        const hasPreview = previewText !== undefined && previewText !== item.text;
+
+        return (
+          <button
+            type="button"
+            key={item.id}
+            className={`pdf-text-item${selectedItemId === item.id ? " is-selected" : ""}${hasPreview ? " has-preview" : ""}`}
+            style={{
+              left: item.left,
+              top: item.top,
+              width: item.width,
+              minHeight: item.height,
+              fontSize: item.fontSize,
+              fontFamily: item.fontFamily,
+              transform: `rotate(${item.angle}deg)`,
+            }}
+            onClick={() => onSelectItem(item)}
+            title={`Inspecionar: ${item.text}`}
+          >
+            {hasPreview ? previewText : item.text}
+          </button>
+        );
+      })}
     </div>
   );
 }
