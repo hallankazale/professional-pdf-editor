@@ -2,7 +2,6 @@
 
 import { ChangeEvent, useState } from "react";
 
-import { downloadPdfCopy } from "@/core/export/download-pdf-copy";
 import { validatePdfFile } from "@/core/files/validate-pdf-file";
 import { PdfViewer } from "@/features/pdf-viewer/PdfViewer";
 
@@ -16,7 +15,6 @@ export default function HomePage() {
     const file = input.files?.[0];
 
     setError(null);
-
     if (!file) return;
 
     setIsValidating(true);
@@ -42,26 +40,13 @@ export default function HomePage() {
     setError(null);
   }
 
-  function handleExport() {
-    if (!selectedFile) return;
-    downloadPdfCopy(selectedFile);
-  }
-
   return (
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">Versão 0.4.0</span>
+          <span className="eyebrow">Versão 0.5.0 • Mobile</span>
           <h1>Professional PDF Editor</h1>
         </div>
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={!selectedFile}
-          onClick={handleExport}
-        >
-          Exportar original
-        </button>
       </header>
 
       {selectedFile ? (
@@ -69,13 +54,10 @@ export default function HomePage() {
       ) : (
         <section className="workspace" aria-labelledby="upload-title">
           <div className="upload-card">
-            <span className="document-icon" aria-hidden="true">
-              PDF
-            </span>
+            <span className="document-icon" aria-hidden="true">PDF</span>
             <h2 id="upload-title">Abra seu documento</h2>
             <p>
-              O arquivo é processado localmente no navegador. Você pode visualizar,
-              editar blocos textuais e salvar uma nova versão do documento.
+              Edite e salve o trabalho no aparelho. O download do PDF acontece somente ao tocar em Exportar.
             </p>
 
             <label className="primary-button" htmlFor="pdf-file" aria-disabled={isValidating}>
@@ -90,11 +72,7 @@ export default function HomePage() {
               disabled={isValidating}
             />
 
-            {error && (
-              <p className="error-message" role="alert">
-                {error}
-              </p>
-            )}
+            {error && <p className="error-message" role="alert">{error}</p>}
           </div>
         </section>
       )}
