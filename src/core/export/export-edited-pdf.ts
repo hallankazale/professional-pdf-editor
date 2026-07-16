@@ -53,7 +53,8 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
   }
 
   const outputBytes = await pdfDocument.save();
-  const blob = new Blob([outputBytes], { type: "application/pdf" });
+  const browserSafeBytes = new Uint8Array(outputBytes);
+  const blob = new Blob([browserSafeBytes], { type: "application/pdf" });
   const objectUrl = URL.createObjectURL(blob);
   const anchor = globalThis.document.createElement("a");
 
