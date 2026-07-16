@@ -1,49 +1,75 @@
-# Roadmap
+# Roadmap — Professional PDF Editor
 
-## Fase 1 — Fundação
+## Visão do produto
 
-- [x] Repositório e documentação inicial
-- [x] Next.js + React + TypeScript estrito
-- [x] Interface responsiva de upload
-- [ ] Instalação validada em CI
-- [ ] Testes unitários da validação de arquivo
+Editor de PDF web responsivo, com processamento local sempre que possível e arquitetura desacoplada do motor de documentos.
 
-## Fase 2 — Visualização
+## Fase 1 — Fundação e visualização
 
-- [ ] Renderização com PDF.js
-- [ ] Web Worker dedicado
-- [ ] Miniaturas de páginas
-- [ ] Zoom e navegação
-- [ ] Virtualização para documentos grandes
+- [x] Estrutura Next.js, React e TypeScript estrito
+- [x] Interface responsiva
+- [x] Upload local de PDF
+- [x] Validação modular de arquivo
+- [x] Testes unitários iniciais
+- [x] GitHub Actions para typecheck, testes e build
+- [x] Renderização com PDF.js
+- [x] Navegação anterior e próxima
+- [x] Salto direto para página
+- [x] Zoom entre 50% e 250%
+- [x] Camada de texto selecionável
+- [ ] Miniaturas laterais
+- [ ] Validação binária do cabeçalho `%PDF`
 
-## Fase 3 — Prova de edição nativa
+## Fase 2 — Inspeção de conteúdo
 
-- [ ] Avaliar SDK profissional
-- [ ] Selecionar texto existente
-- [ ] Ler fonte, tamanho, peso e cor
-- [ ] Alterar uma palavra ou número
-- [ ] Exportar preservando o layout
+- [ ] Seleção de bloco textual
+- [ ] Identificação da posição do texto
+- [ ] Identificação de fonte, tamanho e estilo
+- [ ] Painel de propriedades
+- [ ] Detecção de PDF digital versus escaneado
+- [ ] Estrutura de comandos para desfazer e refazer
 
-## Fase 4 — Editor profissional
+## Fase 3 — Edição nativa
 
-- [ ] Edição de imagens
-- [ ] Histórico desfazer/refazer
-- [ ] Gerenciamento de páginas
-- [ ] Formulários, assinatura e redação permanente
-- [ ] Salvamento local e recuperação de sessão
+- [ ] Prova de conceito com motor profissional
+- [ ] Substituição de palavras e números existentes
+- [ ] Preservação da formatação original
+- [ ] Mudança de fonte, tamanho, peso, estilo e cor
+- [ ] Edição e substituição de imagens
+- [ ] Exportação do PDF alterado
 
-## Fase 5 — OCR e produto
+> A edição nativa depende da validação técnica e comercial de um SDK especializado. A camada de texto do PDF.js serve para seleção e inspeção, mas não reescreve sozinha os objetos internos do PDF.
 
-- [ ] Detectar PDFs escaneados
+## Fase 4 — Gerenciamento de páginas
+
+- [ ] Reordenar páginas
+- [ ] Excluir, duplicar e rotacionar
+- [ ] Inserir páginas em branco
+- [ ] Mesclar documentos
+- [ ] Dividir documento
+
+## Fase 5 — OCR e documentos escaneados
+
+- [ ] Detectar páginas sem texto digital
 - [ ] OCR com indicador de confiança
-- [ ] Autenticação e projetos
-- [ ] Armazenamento criptografado opcional
-- [ ] Planos e limites de uso
+- [ ] Reconstrução editável
+- [ ] Substituição ou aproximação de fontes
 
-## Critérios de qualidade
+## Fase 6 — Produto comercial
 
-- Processamento local por padrão
-- Nenhuma chave secreta no frontend
-- Testes unitários, integração e E2E
-- Comparação visual antes/depois da exportação
-- Compatibilidade com Android e desktop
+- [ ] Autenticação
+- [ ] Projetos salvos
+- [ ] Autosave e recuperação
+- [ ] Histórico de versões
+- [ ] Planos e limites
+- [ ] Armazenamento criptografado
+- [ ] Auditoria e exclusão automática
+
+## Requisitos permanentes
+
+- nenhuma chave secreta no frontend ou repositório;
+- nenhum PDF enviado ao servidor sem consentimento explícito;
+- atualizações feitas em branches e Pull Requests;
+- TypeScript, testes e build obrigatórios antes de integrar na `main`;
+- suporte prioritário a Android e desktop;
+- componentes de interface separados da lógica documental.
