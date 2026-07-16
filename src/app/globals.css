@@ -36,10 +36,17 @@ h1 { margin: 4px 0 0; font-size: clamp(1.35rem, 4vw, 2rem); }
 .file-summary strong { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-summary span, .page-indicator, .zoom-indicator { color: #94a3b8; font-size: .86rem; }
 .page-indicator, .zoom-indicator { min-width: 62px; text-align: center; font-variant-numeric: tabular-nums; }
+.page-jump-form { display: flex; align-items: center; gap: 6px; }
+.page-number-input { width: 54px; min-height: 40px; border: 1px solid rgba(148,163,184,.35); border-radius: 10px; background: #0f172a; color: #f8fafc; text-align: center; font-variant-numeric: tabular-nums; }
+.page-number-input:focus { outline: 2px solid #60a5fa; outline-offset: 2px; }
 .viewer-error { margin: 0; padding: 12px 16px; background: rgba(127,29,29,.35); }
 .document-stage { position: relative; min-height: 520px; overflow: auto; display: grid; place-items: start center; padding: 28px; background: #172033; }
-.pdf-canvas { display: block; max-width: none; background: white; box-shadow: 0 16px 40px rgba(0,0,0,.35); }
-.loading-overlay { position: sticky; top: 16px; z-index: 2; justify-self: center; padding: 10px 14px; border-radius: 999px; background: rgba(15,23,42,.9); color: #dbeafe; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.pdf-page-stack { position: relative; display: inline-block; line-height: 1; box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+.pdf-canvas { display: block; max-width: none; background: white; }
+.pdf-text-layer { position: absolute; inset: 0; overflow: hidden; user-select: text; cursor: text; }
+.pdf-text-layer span { position: absolute; color: transparent; white-space: pre; transform-origin: 0 0; line-height: 1; }
+.pdf-text-layer span::selection { background: rgba(37,99,235,.35); color: transparent; }
+.loading-overlay { position: sticky; top: 16px; z-index: 3; justify-self: center; padding: 10px 14px; border-radius: 999px; background: rgba(15,23,42,.9); color: #dbeafe; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 
 @media (max-width: 760px) {
   .app-shell { padding: 12px; }
