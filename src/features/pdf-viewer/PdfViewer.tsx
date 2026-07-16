@@ -108,7 +108,10 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
     let cancelled = false;
 
-    async function renderPage() {
+    async function renderPage(
+      documentToRender: PDFDocumentProxy,
+      canvasToRender: HTMLCanvasElement,
+    ) {
       try {
         setIsLoading(true);
         setError(null);
@@ -116,19 +119,19 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         setPageTextStatus("loading");
         renderTaskRef.current?.cancel();
 
-        const page = await activePdfDocument.getPage(pageNumber);
+        const page = await documentToRender.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
 
         if (cancelled) return;
 
-        const context = canvasElement.getContext("2d", { alpha: false });
+        const context = canvasToRender.getContext("2d", { alpha: false });
         if (!context) throw new Error("Canvas indisponível");
 
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-        canvasElement.width = Math.floor(viewport.width * pixelRatio);
-        canvasElement.height = Math.floor(viewport.height * pixelRatio);
-        canvasElement.style.width = `${Math.floor(viewport.width)}px`;
-        canvasElement.style.height = `${Math.floor(viewport.height)}px`;
+        canvasToRender.width = Math.floor(viewport.width * pixelRatio);
+        canvasToRender.height = Math.floor(viewport.height * pixelRatio);
+        canvasToRender.style.width = `${Math.floor(viewport.width)}px`;
+        canvasToRender.style.height = `${Math.floor(viewport.height)}px`;
 
         const renderTask = page.render({
           canvasContext: context,
@@ -148,7 +151,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       }
     }
 
-    void renderPage();
+    void renderPage(activePdfDocument, canvasElement);
 
     return () => {
       cancelled = true;
