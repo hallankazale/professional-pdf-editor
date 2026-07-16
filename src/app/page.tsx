@@ -41,13 +41,15 @@ export default function HomePage() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Versão 0.5.0 • Mobile</span>
-          <h1>Professional PDF Editor</h1>
-        </div>
-      </header>
+    <main className={`app-shell ${selectedFile ? "is-editing" : ""}`}>
+      {!selectedFile && (
+        <header className="topbar">
+          <div>
+            <span className="eyebrow">Versão 0.5.1 • Mobile</span>
+            <h1>Professional PDF Editor</h1>
+          </div>
+        </header>
+      )}
 
       {selectedFile ? (
         <PdfViewer file={selectedFile} onClose={handleCloseDocument} />
