@@ -20,15 +20,18 @@ Editor de PDF web responsivo, com processamento local sempre que possível e arq
 - [ ] Miniaturas laterais
 - [ ] Validação binária do cabeçalho `%PDF`
 
-## Fase 2 — Inspeção de conteúdo
+## Fase 2 — Inspeção e prévia de conteúdo
 
 - [x] Seleção de bloco textual
 - [x] Identificação da posição do texto
 - [x] Identificação aproximada de fonte e tamanho
 - [x] Painel de propriedades
 - [x] Detecção inicial de PDF digital versus página sem texto
+- [x] Edição controlada em prévia
+- [x] Histórico de desfazer e refazer da prévia
+- [x] Separação entre prévia visual e reescrita nativa
 - [ ] Identificação confiável de peso, estilo e cor
-- [ ] Estrutura de comandos para desfazer e refazer
+- [ ] Persistência local das alterações em andamento
 
 ## Fase 3 — Edição nativa
 
@@ -39,7 +42,7 @@ Editor de PDF web responsivo, com processamento local sempre que possível e arq
 - [ ] Edição e substituição de imagens
 - [ ] Exportação do PDF alterado
 
-> A edição nativa depende da validação técnica e comercial de um SDK especializado. A camada de texto do PDF.js serve para seleção e inspeção, mas não reescreve sozinha os objetos internos do PDF.
+> A edição nativa depende da validação técnica e comercial de um SDK especializado. A camada de texto do PDF.js serve para seleção, inspeção e prévia, mas não reescreve sozinha os objetos internos do PDF.
 
 ## Fase 4 — Gerenciamento de páginas
 
