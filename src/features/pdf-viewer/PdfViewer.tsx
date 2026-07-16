@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
+import { PdfInspectorPanel } from "./PdfInspectorPanel";
 import { PdfTextLayer } from "./PdfTextLayer";
+import type { InspectedTextItem, PdfPageTextStatus } from "./pdf-inspector.types";
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
@@ -24,6 +26,12 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InspectedTextItem | null>(null);
+  const [pageTextStatus, setPageTextStatus] = useState<PdfPageTextStatus>("loading");
+
+  const handlePageStatusChange = useCallback((status: PdfPageTextStatus) => {
+    setPageTextStatus(status);
+  }, []);
 
   useEffect(() => {
     let activeDocument: PDFDocumentProxy | null = null;
@@ -33,6 +41,8 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setIsLoading(true);
       setError(null);
       setActivePage(null);
+      setSelectedItem(null);
+      setPageTextStatus("loading");
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -78,6 +88,8 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       try {
         setIsLoading(true);
         setError(null);
+        setSelectedItem(null);
+        setPageTextStatus("loading");
         renderTaskRef.current?.cancel();
 
         const page = await document.getPage(pageNumber);
@@ -213,19 +225,33 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           </button>
         </div>
 
-        <button type="button" className="primary-action" disabled>
-          Editar
+        <button type="button" className="primary-action" disabled={!selectedItem}>
+          Editar seleção
         </button>
       </div>
 
       {error && <p className="viewer-error" role="alert">{error}</p>}
 
-      <div className="document-stage">
-        {isLoading && <div className="loading-overlay" role="status">Processando página…</div>}
-        <div className="pdf-page-stack">
-          <canvas ref={canvasRef} className="pdf-canvas" aria-label={`Página ${pageNumber} do PDF`} />
-          <PdfTextLayer page={activePage} scale={scale} />
+      <div className="editor-content">
+        <div className="document-stage">
+          {isLoading && <div className="loading-overlay" role="status">Processando página…</div>}
+          <div className="pdf-page-stack">
+            <canvas ref={canvasRef} className="pdf-canvas" aria-label={`Página ${pageNumber} do PDF`} />
+            <PdfTextLayer
+              page={activePage}
+              scale={scale}
+              selectedItemId={selectedItem?.id ?? null}
+              onSelectItem={setSelectedItem}
+              onPageStatusChange={handlePageStatusChange}
+            />
+          </div>
         </div>
+
+        <PdfInspectorPanel
+          selectedItem={selectedItem}
+          pageStatus={pageTextStatus}
+          onClearSelection={() => setSelectedItem(null)}
+        />
       </div>
     </section>
   );
