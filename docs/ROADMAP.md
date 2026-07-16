@@ -22,11 +22,12 @@ Editor de PDF web responsivo, com processamento local sempre que possível e arq
 
 ## Fase 2 — Inspeção de conteúdo
 
-- [ ] Seleção de bloco textual
-- [ ] Identificação da posição do texto
-- [ ] Identificação de fonte, tamanho e estilo
-- [ ] Painel de propriedades
-- [ ] Detecção de PDF digital versus escaneado
+- [x] Seleção de bloco textual
+- [x] Identificação da posição do texto
+- [x] Identificação aproximada de fonte e tamanho
+- [x] Painel de propriedades
+- [x] Detecção inicial de PDF digital versus página sem texto
+- [ ] Identificação confiável de peso, estilo e cor
 - [ ] Estrutura de comandos para desfazer e refazer
 
 ## Fase 3 — Edição nativa
@@ -50,7 +51,7 @@ Editor de PDF web responsivo, com processamento local sempre que possível e arq
 
 ## Fase 5 — OCR e documentos escaneados
 
-- [ ] Detectar páginas sem texto digital
+- [x] Detectar páginas sem texto digital
 - [ ] OCR com indicador de confiança
 - [ ] Reconstrução editável
 - [ ] Substituição ou aproximação de fontes
