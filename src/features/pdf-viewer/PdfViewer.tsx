@@ -101,7 +101,10 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   }, [file]);
 
   useEffect(() => {
-    if (!pdfDocument || !canvasRef.current) return;
+    const activePdfDocument = pdfDocument;
+    const canvasElement = canvasRef.current;
+
+    if (!activePdfDocument || !canvasElement) return;
 
     let cancelled = false;
 
@@ -113,20 +116,19 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         setPageTextStatus("loading");
         renderTaskRef.current?.cancel();
 
-        const page = await pdfDocument.getPage(pageNumber);
+        const page = await activePdfDocument.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current;
 
-        if (!canvas || cancelled) return;
+        if (cancelled) return;
 
-        const context = canvas.getContext("2d", { alpha: false });
+        const context = canvasElement.getContext("2d", { alpha: false });
         if (!context) throw new Error("Canvas indisponível");
 
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.floor(viewport.width * pixelRatio);
-        canvas.height = Math.floor(viewport.height * pixelRatio);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        canvasElement.width = Math.floor(viewport.width * pixelRatio);
+        canvasElement.height = Math.floor(viewport.height * pixelRatio);
+        canvasElement.style.width = `${Math.floor(viewport.width)}px`;
+        canvasElement.style.height = `${Math.floor(viewport.height)}px`;
 
         const renderTask = page.render({
           canvasContext: context,
