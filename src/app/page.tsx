@@ -29,7 +29,12 @@ export default function HomePage() {
         return;
       }
 
+      // Fluxo direto: terminou a validação, o editor é exibido automaticamente.
       setSelectedFile(file);
+    } catch {
+      setSelectedFile(null);
+      setError("Não foi possível analisar este arquivo.");
+      input.value = "";
     } finally {
       setIsValidating(false);
     }
@@ -41,40 +46,54 @@ export default function HomePage() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Versão 0.5.0 • Mobile</span>
-          <h1>Professional PDF Editor</h1>
-        </div>
-      </header>
-
+    <main className={`app-shell ${selectedFile ? "is-editing" : "is-home"}`}>
       {selectedFile ? (
         <PdfViewer file={selectedFile} onClose={handleCloseDocument} />
       ) : (
-        <section className="workspace" aria-labelledby="upload-title">
-          <div className="upload-card">
-            <span className="document-icon" aria-hidden="true">PDF</span>
-            <h2 id="upload-title">Abra seu documento</h2>
-            <p>
-              Edite e salve o trabalho no aparelho. O download do PDF acontece somente ao tocar em Exportar.
-            </p>
+        <>
+          <header className="home-header">
+            <div className="brand-mark" aria-hidden="true">P</div>
+            <div>
+              <span className="eyebrow">Editor mobile</span>
+              <h1>Professional PDF Editor</h1>
+            </div>
+          </header>
 
-            <label className="primary-button" htmlFor="pdf-file" aria-disabled={isValidating}>
-              {isValidating ? "Verificando PDF…" : "Selecionar PDF"}
-            </label>
-            <input
-              id="pdf-file"
-              className="visually-hidden"
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(event) => void handleFileSelection(event)}
-              disabled={isValidating}
-            />
+          <section className="workspace" aria-labelledby="upload-title">
+            <div className="upload-card">
+              <div className="upload-hero">
+                <span className="document-icon" aria-hidden="true">PDF</span>
+                <span className="privacy-badge">Processamento local</span>
+              </div>
 
-            {error && <p className="error-message" role="alert">{error}</p>}
-          </div>
-        </section>
+              <h2 id="upload-title">Abra e edite seu PDF</h2>
+              <p>
+                Selecione o arquivo e ele será aberto automaticamente no editor.
+                Nenhum botão extra será necessário.
+              </p>
+
+              <label className="primary-button upload-action" htmlFor="pdf-file" aria-disabled={isValidating}>
+                {isValidating ? "Abrindo PDF…" : "Selecionar PDF"}
+              </label>
+              <input
+                id="pdf-file"
+                className="visually-hidden"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(event) => void handleFileSelection(event)}
+                disabled={isValidating}
+              />
+
+              <div className="home-benefits" aria-label="Benefícios">
+                <span>Sem upload para servidor</span>
+                <span>Salvar sem baixar</span>
+                <span>Exportar somente quando quiser</span>
+              </div>
+
+              {error && <p className="error-message" role="alert">{error}</p>}
+            </div>
+          </section>
+        </>
       )}
     </main>
   );
