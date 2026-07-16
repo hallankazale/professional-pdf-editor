@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
+import { exportEditedPdf, type PdfTextEdit } from "@/core/export/export-edited-pdf";
 import { PdfInspectorPanel } from "./PdfInspectorPanel";
 import { PdfTextLayer } from "./PdfTextLayer";
 import type { InspectedTextItem, PdfPageTextStatus } from "./pdf-inspector.types";
@@ -11,7 +12,8 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
 const SCALE_STEP = 0.25;
 
-type PreviewState = Record<string, string>;
+type PreviewEdit = PdfTextEdit & { id: string };
+type PreviewState = Record<string, PreviewEdit>;
 
 type PdfViewerProps = {
   file: File;
@@ -19,7 +21,9 @@ type PdfViewerProps = {
 };
 
 function clonePreviewState(state: PreviewState): PreviewState {
-  return { ...state };
+  return Object.fromEntries(
+    Object.entries(state).map(([key, value]) => [key, { ...value, original: { ...value.original } }]),
+  );
 }
 
 export function PdfViewer({ file, onClose }: PdfViewerProps) {
@@ -31,6 +35,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [pageInput, setPageInput] = useState("1");
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<InspectedTextItem | null>(null);
   const [pageTextStatus, setPageTextStatus] = useState<PdfPageTextStatus>("loading");
@@ -46,10 +51,10 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const currentPageEdits = Object.fromEntries(
     Object.entries(previewEdits)
       .filter(([key]) => key.startsWith(currentPagePrefix))
-      .map(([key, value]) => [key.slice(currentPagePrefix.length), value]),
+      .map(([key, value]) => [key.slice(currentPagePrefix.length), value.text]),
   );
   const selectedEditKey = selectedItem ? `${pageNumber}:${selectedItem.id}` : null;
-  const selectedPreviewText = selectedEditKey ? previewEdits[selectedEditKey] ?? null : null;
+  const selectedPreviewText = selectedEditKey ? previewEdits[selectedEditKey]?.text ?? null : null;
 
   useEffect(() => {
     let activeDocument: PDFDocumentProxy | null = null;
@@ -160,6 +165,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   }, [pdfDocument, pageNumber, scale]);
 
   const totalPages = pdfDocument?.numPages ?? 0;
+  const editCount = Object.keys(previewEdits).length;
 
   function goToPage(nextPage: number) {
     if (!totalPages) return;
@@ -187,8 +193,17 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     setRedoStack([]);
     setPreviewEdits((current) => {
       const next = { ...current };
-      if (nextText === selectedItem.text) delete next[selectedEditKey];
-      else next[selectedEditKey] = nextText;
+      if (nextText === selectedItem.text) {
+        delete next[selectedEditKey];
+      } else {
+        next[selectedEditKey] = {
+          id: selectedEditKey,
+          pageNumber,
+          text: nextText,
+          original: { ...selectedItem },
+          scale,
+        };
+      }
       return next;
     });
   }
@@ -209,6 +224,21 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
     setPreviewEdits(next);
     setRedoStack((current) => current.slice(0, -1));
+  }
+
+  async function handleExportEdits() {
+    if (!editCount || isExporting) return;
+
+    setIsExporting(true);
+    setError(null);
+
+    try {
+      await exportEditedPdf(file, Object.values(previewEdits));
+    } catch {
+      setError("Não foi possível exportar as alterações deste PDF.");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   return (
@@ -265,6 +295,10 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
         <button type="button" className="primary-action" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>
           Editar seleção
+        </button>
+
+        <button type="button" className="primary-action" disabled={!editCount || isExporting} onClick={() => void handleExportEdits()}>
+          {isExporting ? "Exportando…" : `Salvar edições${editCount ? ` (${editCount})` : ""}`}
         </button>
       </div>
 
