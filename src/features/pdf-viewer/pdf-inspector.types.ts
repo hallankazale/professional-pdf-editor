@@ -11,3 +11,11 @@ export type InspectedTextItem = {
 };
 
 export type PdfPageTextStatus = "loading" | "digital" | "scanned";
+
+export type TextPreviewEdit = {
+  key: string;
+  pageNumber: number;
+  itemId: string;
+  originalText: string;
+  nextText: string;
+};
