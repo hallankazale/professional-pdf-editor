@@ -25,7 +25,7 @@ function clonePreviewState(state: PreviewState): PreviewState {
 export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
-  const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [activePage, setActivePage] = useState<PDFPageProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageInput, setPageInput] = useState("1");
@@ -81,7 +81,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         }
 
         activeDocument = loadedDocument;
-        setDocument(loadedDocument);
+        setPdfDocument(loadedDocument);
         setPageNumber(1);
         setPageInput("1");
       } catch {
@@ -101,7 +101,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   }, [file]);
 
   useEffect(() => {
-    if (!document || !canvasRef.current) return;
+    if (!pdfDocument || !canvasRef.current) return;
 
     let cancelled = false;
 
@@ -113,7 +113,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         setPageTextStatus("loading");
         renderTaskRef.current?.cancel();
 
-        const page = await document.getPage(pageNumber);
+        const page = await pdfDocument.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
 
@@ -152,9 +152,9 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
-  }, [document, pageNumber, scale]);
+  }, [pdfDocument, pageNumber, scale]);
 
-  const totalPages = document?.numPages ?? 0;
+  const totalPages = pdfDocument?.numPages ?? 0;
 
   function goToPage(nextPage: number) {
     if (!totalPages) return;
@@ -258,7 +258,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
-        <button type="button" className="primary-action" disabled={!selectedItem} onClick={() => document.getElementById("preview-text")?.focus()}>
+        <button type="button" className="primary-action" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>
           Editar seleção
         </button>
       </div>
