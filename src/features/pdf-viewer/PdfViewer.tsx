@@ -11,10 +11,16 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
 const SCALE_STEP = 0.25;
 
+type PreviewState = Record<string, string>;
+
 type PdfViewerProps = {
   file: File;
   onClose: () => void;
 };
+
+function clonePreviewState(state: PreviewState): PreviewState {
+  return { ...state };
+}
 
 export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -28,10 +34,22 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<InspectedTextItem | null>(null);
   const [pageTextStatus, setPageTextStatus] = useState<PdfPageTextStatus>("loading");
+  const [previewEdits, setPreviewEdits] = useState<PreviewState>({});
+  const [undoStack, setUndoStack] = useState<PreviewState[]>([]);
+  const [redoStack, setRedoStack] = useState<PreviewState[]>([]);
 
   const handlePageStatusChange = useCallback((status: PdfPageTextStatus) => {
     setPageTextStatus(status);
   }, []);
+
+  const currentPagePrefix = `${pageNumber}:`;
+  const currentPageEdits = Object.fromEntries(
+    Object.entries(previewEdits)
+      .filter(([key]) => key.startsWith(currentPagePrefix))
+      .map(([key, value]) => [key.slice(currentPagePrefix.length), value]),
+  );
+  const selectedEditKey = selectedItem ? `${pageNumber}:${selectedItem.id}` : null;
+  const selectedPreviewText = selectedEditKey ? previewEdits[selectedEditKey] ?? null : null;
 
   useEffect(() => {
     let activeDocument: PDFDocumentProxy | null = null;
@@ -43,6 +61,9 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setActivePage(null);
       setSelectedItem(null);
       setPageTextStatus("loading");
+      setPreviewEdits({});
+      setUndoStack([]);
+      setRedoStack([]);
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -154,6 +175,37 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     goToPage(parsedPage);
   }
 
+  function applyPreview(nextText: string) {
+    if (!selectedItem || !selectedEditKey) return;
+
+    setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
+    setRedoStack([]);
+    setPreviewEdits((current) => {
+      const next = { ...current };
+      if (nextText === selectedItem.text) delete next[selectedEditKey];
+      else next[selectedEditKey] = nextText;
+      return next;
+    });
+  }
+
+  function undo() {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+
+    setRedoStack((current) => [...current, clonePreviewState(previewEdits)]);
+    setPreviewEdits(previous);
+    setUndoStack((current) => current.slice(0, -1));
+  }
+
+  function redo() {
+    const next = redoStack.at(-1);
+    if (!next) return;
+
+    setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
+    setPreviewEdits(next);
+    setRedoStack((current) => current.slice(0, -1));
+  }
+
   return (
     <section className="editor-shell" aria-label="Visualizador de PDF">
       <div className="editor-toolbar">
@@ -166,20 +218,22 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           <span>{totalPages ? `${totalPages} página${totalPages > 1 ? "s" : ""}` : "Carregando…"}</span>
         </div>
 
+        <div className="toolbar-group" aria-label="Histórico de alterações">
+          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>
+            Desfazer
+          </button>
+          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>
+            Refazer
+          </button>
+        </div>
+
         <div className="toolbar-group" aria-label="Navegação entre páginas">
-          <button
-            type="button"
-            className="toolbar-button"
-            disabled={pageNumber <= 1 || isLoading}
-            onClick={() => goToPage(pageNumber - 1)}
-          >
+          <button type="button" className="toolbar-button" disabled={pageNumber <= 1 || isLoading} onClick={() => goToPage(pageNumber - 1)}>
             Anterior
           </button>
 
           <form className="page-jump-form" onSubmit={handlePageSubmit}>
-            <label className="visually-hidden" htmlFor="page-number-input">
-              Ir para página
-            </label>
+            <label className="visually-hidden" htmlFor="page-number-input">Ir para página</label>
             <input
               id="page-number-input"
               className="page-number-input"
@@ -193,39 +247,18 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
             <span className="page-indicator">/ {totalPages || "—"}</span>
           </form>
 
-          <button
-            type="button"
-            className="toolbar-button"
-            disabled={!totalPages || pageNumber >= totalPages || isLoading}
-            onClick={() => goToPage(pageNumber + 1)}
-          >
+          <button type="button" className="toolbar-button" disabled={!totalPages || pageNumber >= totalPages || isLoading} onClick={() => goToPage(pageNumber + 1)}>
             Próxima
           </button>
         </div>
 
         <div className="toolbar-group" aria-label="Controle de zoom">
-          <button
-            type="button"
-            className="toolbar-button square-button"
-            disabled={scale <= MIN_SCALE || isLoading}
-            onClick={() => setScale((current) => Math.max(MIN_SCALE, current - SCALE_STEP))}
-            aria-label="Diminuir zoom"
-          >
-            −
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={scale <= MIN_SCALE || isLoading} onClick={() => setScale((current) => Math.max(MIN_SCALE, current - SCALE_STEP))} aria-label="Diminuir zoom">−</button>
           <span className="zoom-indicator">{Math.round(scale * 100)}%</span>
-          <button
-            type="button"
-            className="toolbar-button square-button"
-            disabled={scale >= MAX_SCALE || isLoading}
-            onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))}
-            aria-label="Aumentar zoom"
-          >
-            +
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
-        <button type="button" className="primary-action" disabled={!selectedItem}>
+        <button type="button" className="primary-action" disabled={!selectedItem} onClick={() => document.getElementById("preview-text")?.focus()}>
           Editar seleção
         </button>
       </div>
@@ -241,6 +274,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
               page={activePage}
               scale={scale}
               selectedItemId={selectedItem?.id ?? null}
+              previewEdits={currentPageEdits}
               onSelectItem={setSelectedItem}
               onPageStatusChange={handlePageStatusChange}
             />
@@ -250,6 +284,8 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         <PdfInspectorPanel
           selectedItem={selectedItem}
           pageStatus={pageTextStatus}
+          previewText={selectedPreviewText}
+          onApplyPreview={applyPreview}
           onClearSelection={() => setSelectedItem(null)}
         />
       </div>
