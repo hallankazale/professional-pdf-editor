@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useState } from "react";
 
+import { downloadPdfCopy } from "@/core/export/download-pdf-copy";
 import { validatePdfFile } from "@/core/files/validate-pdf-file";
 import { PdfViewer } from "@/features/pdf-viewer/PdfViewer";
 
@@ -41,15 +42,25 @@ export default function HomePage() {
     setError(null);
   }
 
+  function handleExport() {
+    if (!selectedFile) return;
+    downloadPdfCopy(selectedFile);
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">Versão 0.2.1</span>
+          <span className="eyebrow">Versão 0.3.0</span>
           <h1>Professional PDF Editor</h1>
         </div>
-        <button type="button" className="secondary-button" disabled>
-          Exportar
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={!selectedFile}
+          onClick={handleExport}
+        >
+          Exportar cópia
         </button>
       </header>
 
