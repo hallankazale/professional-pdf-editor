@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+
+import { PdfTextLayer } from "./PdfTextLayer";
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
@@ -16,7 +18,9 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
+  const [activePage, setActivePage] = useState<PDFPageProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     async function loadDocument() {
       setIsLoading(true);
       setError(null);
+      setActivePage(null);
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -47,6 +52,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         activeDocument = loadedDocument;
         setDocument(loadedDocument);
         setPageNumber(1);
+        setPageInput("1");
       } catch {
         setError("Não foi possível abrir este PDF. Ele pode estar protegido ou corrompido.");
       } finally {
@@ -71,6 +77,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     async function renderPage() {
       try {
         setIsLoading(true);
+        setError(null);
         renderTaskRef.current?.cancel();
 
         const page = await document.getPage(pageNumber);
@@ -96,6 +103,8 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
         renderTaskRef.current = renderTask;
         await renderTask.promise;
+
+        if (!cancelled) setActivePage(page);
       } catch (renderError) {
         if (renderError instanceof Error && renderError.name === "RenderingCancelledException") return;
         setError("Ocorreu um erro ao renderizar esta página.");
@@ -114,6 +123,25 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
   const totalPages = document?.numPages ?? 0;
 
+  function goToPage(nextPage: number) {
+    if (!totalPages) return;
+    const normalizedPage = Math.min(totalPages, Math.max(1, nextPage));
+    setPageNumber(normalizedPage);
+    setPageInput(String(normalizedPage));
+  }
+
+  function handlePageSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsedPage = Number.parseInt(pageInput, 10);
+
+    if (Number.isNaN(parsedPage)) {
+      setPageInput(String(pageNumber));
+      return;
+    }
+
+    goToPage(parsedPage);
+  }
+
   return (
     <section className="editor-shell" aria-label="Visualizador de PDF">
       <div className="editor-toolbar">
@@ -131,16 +159,33 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
             type="button"
             className="toolbar-button"
             disabled={pageNumber <= 1 || isLoading}
-            onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
+            onClick={() => goToPage(pageNumber - 1)}
           >
             Anterior
           </button>
-          <span className="page-indicator">{pageNumber} / {totalPages || "—"}</span>
+
+          <form className="page-jump-form" onSubmit={handlePageSubmit}>
+            <label className="visually-hidden" htmlFor="page-number-input">
+              Ir para página
+            </label>
+            <input
+              id="page-number-input"
+              className="page-number-input"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pageInput}
+              onChange={(event) => setPageInput(event.target.value.replace(/\D/g, ""))}
+              onBlur={() => setPageInput(String(pageNumber))}
+              disabled={!totalPages || isLoading}
+            />
+            <span className="page-indicator">/ {totalPages || "—"}</span>
+          </form>
+
           <button
             type="button"
             className="toolbar-button"
             disabled={!totalPages || pageNumber >= totalPages || isLoading}
-            onClick={() => setPageNumber((current) => Math.min(totalPages, current + 1))}
+            onClick={() => goToPage(pageNumber + 1)}
           >
             Próxima
           </button>
@@ -177,7 +222,10 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
       <div className="document-stage">
         {isLoading && <div className="loading-overlay" role="status">Processando página…</div>}
-        <canvas ref={canvasRef} className="pdf-canvas" aria-label={`Página ${pageNumber} do PDF`} />
+        <div className="pdf-page-stack">
+          <canvas ref={canvasRef} className="pdf-canvas" aria-label={`Página ${pageNumber} do PDF`} />
+          <PdfTextLayer page={activePage} scale={scale} />
+        </div>
       </div>
     </section>
   );
