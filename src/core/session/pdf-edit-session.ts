@@ -13,18 +13,34 @@ function createStorageKey(file: File): string {
   return `${STORAGE_PREFIX}${createFileIdentity(file)}`;
 }
 
+function getStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function savePdfEditSession(file: File, edits: StoredPdfEditState): void {
+  const storage = getStorage();
+  if (!storage) return;
+
   const payload = {
     version: 1,
     savedAt: new Date().toISOString(),
     edits,
   };
 
-  globalThis.localStorage.setItem(createStorageKey(file), JSON.stringify(payload));
+  storage.setItem(createStorageKey(file), JSON.stringify(payload));
 }
 
 export function loadPdfEditSession(file: File): StoredPdfEditState {
-  const rawValue = globalThis.localStorage.getItem(createStorageKey(file));
+  const storage = getStorage();
+  if (!storage) return {};
+
+  const rawValue = storage.getItem(createStorageKey(file));
   if (!rawValue) return {};
 
   try {
@@ -36,5 +52,5 @@ export function loadPdfEditSession(file: File): StoredPdfEditState {
 }
 
 export function clearPdfEditSession(file: File): void {
-  globalThis.localStorage.removeItem(createStorageKey(file));
+  getStorage()?.removeItem(createStorageKey(file));
 }
