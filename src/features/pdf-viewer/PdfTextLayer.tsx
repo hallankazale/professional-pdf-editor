@@ -20,17 +20,58 @@ type PdfTextLayerProps = {
   onPageStatusChange: (status: PdfPageTextStatus) => void;
 };
 
+type PdfJsFontInfo = {
+  loadedName?: string;
+  fallbackName?: string;
+  name?: string;
+  bold?: boolean;
+  black?: boolean;
+  italic?: boolean;
+};
+
+type PdfPageWithCommonObjects = PDFPageProxy & {
+  commonObjs?: {
+    get: (id: string) => PdfJsFontInfo | undefined;
+  };
+};
+
 const BLACK: PdfRgbColor = { red: 0, green: 0, blue: 0 };
 const WHITE: PdfRgbColor = { red: 1, green: 1, blue: 1 };
 
-function detectFontWeight(fontName: string, fontFamily: string): "normal" | "bold" {
-  const descriptor = `${fontName} ${fontFamily}`.toLowerCase();
+function detectFontWeight(
+  fontName: string,
+  fontFamily: string,
+  fontInfo?: PdfJsFontInfo,
+): "normal" | "bold" {
+  if (fontInfo?.bold || fontInfo?.black) return "bold";
+  const descriptor = `${fontInfo?.name ?? ""} ${fontInfo?.fallbackName ?? ""} ${fontName} ${fontFamily}`.toLowerCase();
   return /bold|black|heavy|semibold|demi|700|800|900/.test(descriptor) ? "bold" : "normal";
 }
 
-function detectFontStyle(fontName: string, fontFamily: string): "normal" | "italic" {
-  const descriptor = `${fontName} ${fontFamily}`.toLowerCase();
+function detectFontStyle(
+  fontName: string,
+  fontFamily: string,
+  fontInfo?: PdfJsFontInfo,
+): "normal" | "italic" {
+  if (fontInfo?.italic) return "italic";
+  const descriptor = `${fontInfo?.name ?? ""} ${fontInfo?.fallbackName ?? ""} ${fontName} ${fontFamily}`.toLowerCase();
   return /italic|oblique|slanted/.test(descriptor) ? "italic" : "normal";
+}
+
+function resolveCssFontFamily(fontFamily: string, fontInfo?: PdfJsFontInfo): string {
+  const families = [fontInfo?.loadedName, fontInfo?.fallbackName, fontFamily]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => `"${value.replaceAll('"', "")}"\`);
+
+  return families.length ? `${families.join(", ")}, sans-serif` : "sans-serif";
+}
+
+function getFontInfo(page: PDFPageProxy, fontName: string): PdfJsFontInfo | undefined {
+  try {
+    return (page as PdfPageWithCommonObjects).commonObjs?.get(fontName);
+  } catch {
+    return undefined;
+  }
 }
 
 function toRgbColor(red: number, green: number, blue: number): PdfRgbColor {
@@ -153,8 +194,8 @@ function sampleItemColors(
 
 /**
  * Cria uma camada textual sobre o canvas sem modificar o PDF.
- * As alterações são renderizadas apenas como prévia visual e ficam separadas
- * do motor responsável pela exportação.
+ * A prévia reutiliza a fonte já carregada pelo PDF.js quando ela está disponível,
+ * preservando peso e estilo em vez de tentar reconstruí-los apenas pelo nome.
  */
 export function PdfTextLayer({
   page,
@@ -193,8 +234,10 @@ export function PdfTextLayer({
         const angle = Math.atan2(b, a) * (180 / Math.PI);
         const fontName = item.fontName || "";
         const fontFamily = styles[fontName]?.fontFamily || "sans-serif";
-        const fontWeight = detectFontWeight(fontName, fontFamily);
-        const fontStyle = detectFontStyle(fontName, fontFamily);
+        const fontInfo = getFontInfo(page, fontName);
+        const cssFontFamily = resolveCssFontFamily(fontFamily, fontInfo);
+        const fontWeight = detectFontWeight(fontName, fontFamily, fontInfo);
+        const fontStyle = detectFontStyle(fontName, fontFamily, fontInfo);
         const width = Math.max(fontSize, (item.width || item.str.length * fontSize * 0.5) * scale);
         const height = Math.max(fontSize, (item.height || fontSize / scale) * scale);
         const geometry = {
@@ -212,6 +255,7 @@ export function PdfTextLayer({
           fontSize,
           angle,
           fontFamily,
+          cssFontFamily,
           fontName,
           fontWeight,
           fontStyle,
@@ -254,7 +298,7 @@ export function PdfTextLayer({
               width: item.width,
               minHeight: item.height,
               fontSize: item.fontSize,
-              fontFamily: item.fontFamily,
+              fontFamily: item.cssFontFamily || item.fontFamily,
               fontWeight: item.fontWeight,
               fontStyle: item.fontStyle,
               color: hasPreview ? cssRgb(item.textColor) : undefined,
