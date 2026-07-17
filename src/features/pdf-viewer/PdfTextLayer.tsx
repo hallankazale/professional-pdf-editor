@@ -119,7 +119,10 @@ function sampleItemColors(
     ).map((value) => value / backgroundSource.length) as [number, number, number];
 
     const contrastingPixels = allPixels
-      .map((pixel) => ({ pixel, distance: colorDistance(...pixel, background) }))
+      .map((pixel) => ({
+        pixel,
+        distance: colorDistance(pixel[0], pixel[1], pixel[2], background),
+      }))
       .filter(({ distance }) => distance >= 38)
       .sort((left, right) => right.distance - left.distance);
 
@@ -128,7 +131,7 @@ function sampleItemColors(
       Math.max(1, Math.ceil(contrastingPixels.length * 0.35)),
     );
 
-    const foreground = strongest.length
+    const foreground: [number, number, number] = strongest.length
       ? strongest.reduce<[number, number, number]>(
           (total, entry) => [
             total[0] + entry.pixel[0],
@@ -140,8 +143,8 @@ function sampleItemColors(
       : [0, 0, 0];
 
     return {
-      textColor: toRgbColor(...foreground),
-      backgroundColor: toRgbColor(...background),
+      textColor: toRgbColor(foreground[0], foreground[1], foreground[2]),
+      backgroundColor: toRgbColor(background[0], background[1], background[2]),
     };
   } catch {
     return { textColor: BLACK, backgroundColor: WHITE };
