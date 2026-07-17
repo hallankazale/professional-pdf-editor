@@ -1,3 +1,9 @@
+export type PdfRgbColor = {
+  red: number;
+  green: number;
+  blue: number;
+};
+
 export type InspectedTextItem = {
   id: string;
   text: string;
@@ -6,6 +12,8 @@ export type InspectedTextItem = {
   fontSize: number;
   fontWeight: "normal" | "bold";
   fontStyle: "normal" | "italic";
+  textColor: PdfRgbColor;
+  backgroundColor: PdfRgbColor;
   angle: number;
   left: number;
   top: number;
