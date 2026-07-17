@@ -16,6 +16,16 @@ type PdfTextLayerProps = {
   onPageStatusChange: (status: PdfPageTextStatus) => void;
 };
 
+function detectFontWeight(fontName: string, fontFamily: string): "normal" | "bold" {
+  const descriptor = `${fontName} ${fontFamily}`.toLowerCase();
+  return /bold|black|heavy|semibold|demi|700|800|900/.test(descriptor) ? "bold" : "normal";
+}
+
+function detectFontStyle(fontName: string, fontFamily: string): "normal" | "italic" {
+  const descriptor = `${fontName} ${fontFamily}`.toLowerCase();
+  return /italic|oblique|slanted/.test(descriptor) ? "italic" : "normal";
+}
+
 /**
  * Cria uma camada textual sobre o canvas sem modificar o PDF.
  * As alterações são renderizadas apenas como prévia visual e ficam separadas
@@ -55,7 +65,10 @@ export function PdfTextLayer({
         const y = viewport.transform[1] * e + viewport.transform[3] * f + viewport.transform[5];
         const fontSize = Math.max(1, Math.hypot(b, d) * scale);
         const angle = Math.atan2(b, a) * (180 / Math.PI);
-        const fontFamily = styles[item.fontName]?.fontFamily || "sans-serif";
+        const fontName = item.fontName || "";
+        const fontFamily = styles[fontName]?.fontFamily || "sans-serif";
+        const fontWeight = detectFontWeight(fontName, fontFamily);
+        const fontStyle = detectFontStyle(fontName, fontFamily);
         const width = Math.max(fontSize, (item.width || item.str.length * fontSize * 0.5) * scale);
         const height = Math.max(fontSize, (item.height || fontSize / scale) * scale);
 
@@ -67,6 +80,9 @@ export function PdfTextLayer({
           fontSize,
           angle,
           fontFamily,
+          fontName,
+          fontWeight,
+          fontStyle,
           width,
           height,
         }];
@@ -108,6 +124,8 @@ export function PdfTextLayer({
               minHeight: item.height,
               fontSize: item.fontSize,
               fontFamily: item.fontFamily,
+              fontWeight: item.fontWeight,
+              fontStyle: item.fontStyle,
               transform: `rotate(${item.angle}deg)`,
             }}
             onClick={() => onSelectItem(item)}
