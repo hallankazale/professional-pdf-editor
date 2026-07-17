@@ -20,15 +20,32 @@ export function PdfInspectorPanel({
   onClearSelection,
 }: PdfInspectorPanelProps) {
   const [draftText, setDraftText] = useState("");
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setDraftText(previewText ?? selectedItem?.text ?? "");
+    setCopyMessage(null);
   }, [previewText, selectedItem]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedItem) return;
     onApplyPreview(draftText);
+  }
+
+  function focusEditor(): void {
+    globalThis.document.getElementById("preview-text")?.focus();
+  }
+
+  async function copySelectedText(): Promise<void> {
+    if (!selectedItem) return;
+
+    try {
+      await globalThis.navigator.clipboard.writeText(previewText ?? selectedItem.text);
+      setCopyMessage("Texto copiado!");
+    } catch {
+      setCopyMessage("Não foi possível copiar.");
+    }
   }
 
   return (
@@ -38,8 +55,8 @@ export function PdfInspectorPanel({
     >
       <div className="inspector-header">
         <div>
-          <span className="inspector-eyebrow">{selectedItem ? "Editar seleção" : "Documento"}</span>
-          <h2>{selectedItem ? "Texto selecionado" : "Toque em um texto"}</h2>
+          <span className="inspector-eyebrow">{selectedItem ? "Texto selecionado" : "Documento"}</span>
+          <h2>{selectedItem ? "O que deseja fazer?" : "Toque em um texto"}</h2>
         </div>
         {selectedItem && (
           <button type="button" className="inspector-close" onClick={onClearSelection}>
@@ -60,6 +77,33 @@ export function PdfInspectorPanel({
         </p>
       ) : (
         <>
+          <div
+            role="toolbar"
+            aria-label="Ações do texto selecionado"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <button type="button" className="primary-action" onClick={focusEditor}>
+              Editar
+            </button>
+            <button type="button" className="toolbar-button" onClick={() => void copySelectedText()}>
+              Copiar
+            </button>
+            <button type="button" className="toolbar-button" onClick={onClearSelection}>
+              Cancelar
+            </button>
+          </div>
+
+          {copyMessage && (
+            <p role="status" style={{ margin: "9px 0 0", color: "#bfdbfe", fontSize: ".8rem" }}>
+              {copyMessage}
+            </p>
+          )}
+
           <form className="preview-edit-form" onSubmit={handleSubmit}>
             <label htmlFor="preview-text">Novo conteúdo</label>
             <textarea
