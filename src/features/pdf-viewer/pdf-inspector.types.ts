@@ -8,6 +8,7 @@ export type InspectedTextItem = {
   id: string;
   text: string;
   fontFamily: string;
+  cssFontFamily: string;
   fontName: string;
   fontSize: number;
   fontWeight: "normal" | "bold";
