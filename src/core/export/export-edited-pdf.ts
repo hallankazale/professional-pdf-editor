@@ -1,4 +1,13 @@
-import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib";
+import {
+  PDFDocument,
+  StandardFonts,
+  degrees,
+  popGraphicsState,
+  pushGraphicsState,
+  rgb,
+  scale as scaleGraphics,
+  type PDFFont,
+} from "pdf-lib";
 
 import type { InspectedTextItem, PdfRgbColor } from "@/features/pdf-viewer/pdf-inspector.types";
 import { createEditedPdfFilename } from "./download-pdf-copy";
@@ -15,6 +24,11 @@ type FontVariant = {
   bold: StandardFonts;
   italic: StandardFonts;
   boldItalic: StandardFonts;
+};
+
+type FittedText = {
+  fontSize: number;
+  horizontalScale: number;
 };
 
 const FONT_VARIANTS: Record<"helvetica" | "times" | "courier", FontVariant> = {
@@ -40,6 +54,8 @@ const FONT_VARIANTS: Record<"helvetica" | "times" | "courier", FontVariant> = {
 
 const BLACK: PdfRgbColor = { red: 0, green: 0, blue: 0 };
 const WHITE: PdfRgbColor = { red: 1, green: 1, blue: 1 };
+const MIN_HORIZONTAL_SCALE = 0.72;
+const MAX_HORIZONTAL_SCALE = 1.2;
 
 function resolveFontGroup(original: InspectedTextItem): keyof typeof FONT_VARIANTS {
   const descriptor = `${original.fontName ?? ""} ${original.fontFamily ?? ""}`.toLowerCase();
@@ -59,11 +75,37 @@ function resolveStandardFont(original: InspectedTextItem): StandardFonts {
   return variants.regular;
 }
 
-function fitFontSize(font: PDFFont, text: string, preferredSize: number, availableWidth: number): number {
-  if (!text || availableWidth <= 0) return preferredSize;
-  const measuredWidth = font.widthOfTextAtSize(text, preferredSize);
-  if (measuredWidth <= availableWidth) return preferredSize;
-  return Math.max(1, preferredSize * (availableWidth / measuredWidth));
+function fitTextToWidth(
+  font: PDFFont,
+  text: string,
+  preferredSize: number,
+  availableWidth: number,
+  angle: number,
+): FittedText {
+  if (!text || availableWidth <= 0) {
+    return { fontSize: preferredSize, horizontalScale: 1 };
+  }
+
+  const measuredWidth = Math.max(0.01, font.widthOfTextAtSize(text, preferredSize));
+  const desiredScale = availableWidth / measuredWidth;
+
+  // A compressão horizontal mantém a altura e o peso visual mais próximos do original.
+  // Para textos rotacionados, mantemos a transformação simples para não deslocar a posição.
+  if (Math.abs(angle) < 0.1 && desiredScale >= MIN_HORIZONTAL_SCALE) {
+    return {
+      fontSize: preferredSize,
+      horizontalScale: Math.min(MAX_HORIZONTAL_SCALE, Math.max(MIN_HORIZONTAL_SCALE, desiredScale)),
+    };
+  }
+
+  if (measuredWidth <= availableWidth) {
+    return { fontSize: preferredSize, horizontalScale: 1 };
+  }
+
+  return {
+    fontSize: Math.max(1, preferredSize * (availableWidth / measuredWidth)),
+    horizontalScale: 1,
+  };
 }
 
 function safeColor(color: PdfRgbColor | undefined, fallback: PdfRgbColor): PdfRgbColor {
@@ -77,7 +119,7 @@ function safeColor(color: PdfRgbColor | undefined, fallback: PdfRgbColor): PdfRg
 
 /**
  * Substitui visualmente o texto mantendo posição, rotação, tamanho, estilo,
- * cor da letra e cor de fundo aproximadas a partir da renderização original.
+ * cores e largura aproximada da área original.
  */
 export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise<void> {
   const sourceBytes = await file.arrayBuffer();
@@ -103,9 +145,10 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
     const height = Math.max(preferredFontSize, edit.original.height / safeScale);
     const y = page.getHeight() - edit.original.top / safeScale - height;
     const font = await getFont(resolveStandardFont(edit.original));
-    const fontSize = fitFontSize(font, edit.text, preferredFontSize, width);
+    const fitted = fitTextToWidth(font, edit.text, preferredFontSize, width, edit.original.angle);
     const textColor = safeColor(edit.original.textColor, BLACK);
     const backgroundColor = safeColor(edit.original.backgroundColor, WHITE);
+    const baselineY = y + Math.max(0, (height - fitted.fontSize) / 2);
 
     page.drawRectangle({
       x,
@@ -116,16 +159,24 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
       borderWidth: 0,
     });
 
+    if (fitted.horizontalScale !== 1) {
+      page.pushOperators(pushGraphicsState(), scaleGraphics(fitted.horizontalScale, 1));
+    }
+
     page.drawText(edit.text, {
-      x,
-      y: y + Math.max(0, (height - fontSize) / 2),
-      size: fontSize,
+      x: fitted.horizontalScale === 1 ? x : x / fitted.horizontalScale,
+      y: baselineY,
+      size: fitted.fontSize,
       font,
       color: rgb(textColor.red, textColor.green, textColor.blue),
       rotate: degrees(-edit.original.angle),
-      maxWidth: Math.max(width, fontSize),
-      lineHeight: fontSize * 1.05,
+      maxWidth: Math.max(width / fitted.horizontalScale, fitted.fontSize),
+      lineHeight: fitted.fontSize * 1.05,
     });
+
+    if (fitted.horizontalScale !== 1) {
+      page.pushOperators(popGraphicsState());
+    }
   }
 
   const outputBytes = await pdfDocument.save();
