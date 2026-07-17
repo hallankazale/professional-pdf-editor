@@ -61,7 +61,7 @@ function detectFontStyle(
 function resolveCssFontFamily(fontFamily: string, fontInfo?: PdfJsFontInfo): string {
   const families = [fontInfo?.loadedName, fontInfo?.fallbackName, fontFamily]
     .filter((value): value is string => Boolean(value?.trim()))
-    .map((value) => `"${value.replaceAll('"', "")}"\`);
+    .map((value) => `"${value.replaceAll('"', "")}"`);
 
   return families.length ? `${families.join(", ")}, sans-serif` : "sans-serif";
 }
