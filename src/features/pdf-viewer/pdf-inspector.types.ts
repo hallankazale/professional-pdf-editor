@@ -2,7 +2,10 @@ export type InspectedTextItem = {
   id: string;
   text: string;
   fontFamily: string;
+  fontName: string;
   fontSize: number;
+  fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
   angle: number;
   left: number;
   top: number;
