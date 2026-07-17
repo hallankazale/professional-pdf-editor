@@ -83,6 +83,24 @@ h1 { margin: 2px 0 0; font-size: clamp(1.08rem, 5vw, 1.45rem); }
   to { transform: translateX(min(44vw, 193px)); }
 }
 
+.pdf-search-panel { position: absolute; inset: 8px; z-index: 9; display: flex; flex-direction: column; max-height: calc(100% - 16px); padding: 16px; border: 1px solid rgba(148,163,184,.28); border-radius: 18px; background: rgba(15,23,42,.98); box-shadow: 0 20px 60px rgba(0,0,0,.55); overflow: hidden; }
+.pdf-search-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pdf-search-header div { display: grid; gap: 3px; }
+.pdf-search-header span { color: #93c5fd; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pdf-search-header strong { font-size: 1.05rem; }
+.pdf-search-header button { width: 38px; height: 38px; border: 0; border-radius: 10px; background: rgba(51,65,85,.7); color: #fff; cursor: pointer; font-size: 1.35rem; }
+.pdf-search-form { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin-top: 14px; }
+.pdf-search-form input { min-width: 0; height: 44px; padding: 0 12px; border: 1px solid rgba(148,163,184,.35); border-radius: 11px; background: #111827; color: #fff; }
+.pdf-search-form input:focus { outline: 2px solid #60a5fa; outline-offset: 1px; }
+.pdf-search-form button { min-height: 44px; padding: 0 15px; border: 0; border-radius: 11px; background: #2563eb; color: #fff; font-weight: 800; cursor: pointer; }
+.pdf-search-message, .pdf-search-summary, .pdf-search-note { margin: 12px 0 0; color: #cbd5e1; font-size: .82rem; line-height: 1.4; }
+.pdf-search-summary { padding: 9px 10px; border-radius: 10px; background: rgba(30,64,175,.2); color: #bfdbfe; }
+.pdf-search-results { display: grid; gap: 7px; margin-top: 10px; overflow: auto; }
+.pdf-search-results button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; padding: 9px 11px; border: 1px solid rgba(148,163,184,.22); border-radius: 11px; background: rgba(30,41,59,.82); color: #fff; cursor: pointer; text-align: left; }
+.pdf-search-results button.is-current { border-color: #60a5fa; background: rgba(37,99,235,.25); }
+.pdf-search-results small { color: #94a3b8; }
+.pdf-search-note { margin-top: auto; padding-top: 12px; color: #94a3b8; }
+
 .inspector-panel { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 5; max-height: min(52dvh, 430px); padding: 14px; border: 1px solid rgba(148,163,184,.25); border-radius: 18px; background: rgba(15,23,42,.99); box-shadow: 0 -12px 42px rgba(0,0,0,.45); overflow: auto; }
 .inspector-panel.is-idle { display: none; }
 .inspector-panel.is-open { display: block; }
@@ -119,6 +137,7 @@ h1 { margin: 2px 0 0; font-size: clamp(1.08rem, 5vw, 1.45rem); }
   .editor-content { display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
   .document-stage { position: relative; inset: auto; min-height: 620px; padding: 28px; }
   .pdf-page-stack { zoom: 1; }
+  .pdf-search-panel { inset: 18px auto auto 18px; width: min(390px, calc(100% - 36px)); max-height: calc(100% - 36px); }
   .inspector-panel { position: relative; inset: auto; display: block !important; max-height: none; border-radius: 0; border: 0; border-left: 1px solid rgba(148,163,184,.18); box-shadow: none; }
   .file-summary { max-width: 280px; margin-right: auto; }
 }
