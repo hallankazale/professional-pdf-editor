@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib";
 
-import type { InspectedTextItem } from "@/features/pdf-viewer/pdf-inspector.types";
+import type { InspectedTextItem, PdfRgbColor } from "@/features/pdf-viewer/pdf-inspector.types";
 import { createEditedPdfFilename } from "./download-pdf-copy";
 
 export type PdfTextEdit = {
@@ -38,6 +38,9 @@ const FONT_VARIANTS: Record<"helvetica" | "times" | "courier", FontVariant> = {
   },
 };
 
+const BLACK: PdfRgbColor = { red: 0, green: 0, blue: 0 };
+const WHITE: PdfRgbColor = { red: 1, green: 1, blue: 1 };
+
 function resolveFontGroup(original: InspectedTextItem): keyof typeof FONT_VARIANTS {
   const descriptor = `${original.fontName ?? ""} ${original.fontFamily ?? ""}`.toLowerCase();
   if (/times|serif|georgia|garamond|cambria/.test(descriptor)) return "times";
@@ -63,10 +66,18 @@ function fitFontSize(font: PDFFont, text: string, preferredSize: number, availab
   return Math.max(1, preferredSize * (availableWidth / measuredWidth));
 }
 
+function safeColor(color: PdfRgbColor | undefined, fallback: PdfRgbColor): PdfRgbColor {
+  if (!color) return fallback;
+  return {
+    red: Math.min(1, Math.max(0, color.red)),
+    green: Math.min(1, Math.max(0, color.green)),
+    blue: Math.min(1, Math.max(0, color.blue)),
+  };
+}
+
 /**
- * Substitui visualmente o texto mantendo posição, rotação, tamanho e estilo
- * tipográfico aproximado. Fontes incorporadas no PDF são aproximadas pelas
- * famílias padrão compatíveis do pdf-lib.
+ * Substitui visualmente o texto mantendo posição, rotação, tamanho, estilo,
+ * cor da letra e cor de fundo aproximadas a partir da renderização original.
  */
 export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise<void> {
   const sourceBytes = await file.arrayBuffer();
@@ -93,13 +104,15 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
     const y = page.getHeight() - edit.original.top / safeScale - height;
     const font = await getFont(resolveStandardFont(edit.original));
     const fontSize = fitFontSize(font, edit.text, preferredFontSize, width);
+    const textColor = safeColor(edit.original.textColor, BLACK);
+    const backgroundColor = safeColor(edit.original.backgroundColor, WHITE);
 
     page.drawRectangle({
       x,
       y,
       width,
       height: height * 1.15,
-      color: rgb(1, 1, 1),
+      color: rgb(backgroundColor.red, backgroundColor.green, backgroundColor.blue),
       borderWidth: 0,
     });
 
@@ -108,7 +121,7 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
       y: y + Math.max(0, (height - fontSize) / 2),
       size: fontSize,
       font,
-      color: rgb(0, 0, 0),
+      color: rgb(textColor.red, textColor.green, textColor.blue),
       rotate: degrees(-edit.original.angle),
       maxWidth: Math.max(width, fontSize),
       lineHeight: fontSize * 1.05,
