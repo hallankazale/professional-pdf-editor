@@ -17,6 +17,9 @@ export default function HomePage() {
     setError(null);
     if (!file) return;
 
+    // Abre o editor imediatamente. A validação continua em paralelo e,
+    // caso o arquivo seja inválido, o fluxo retorna à tela inicial com erro.
+    setSelectedFile(file);
     setIsValidating(true);
 
     try {
@@ -26,11 +29,7 @@ export default function HomePage() {
         setSelectedFile(null);
         setError(validation.message);
         input.value = "";
-        return;
       }
-
-      // Fluxo direto: terminou a validação, o editor é exibido automaticamente.
-      setSelectedFile(file);
     } catch {
       setSelectedFile(null);
       setError("Não foi possível analisar este arquivo.");
@@ -68,8 +67,8 @@ export default function HomePage() {
 
               <h2 id="upload-title">Abra e edite seu PDF</h2>
               <p>
-                Selecione o arquivo e ele será aberto automaticamente no editor.
-                Nenhum botão extra será necessário.
+                Toque em selecionar e o documento abrirá imediatamente no editor.
+                Exportar serve apenas para baixar o PDF final.
               </p>
 
               <label className="primary-button upload-action" htmlFor="pdf-file" aria-disabled={isValidating}>
@@ -85,9 +84,9 @@ export default function HomePage() {
               />
 
               <div className="home-benefits" aria-label="Benefícios">
-                <span>Sem upload para servidor</span>
-                <span>Salvar sem baixar</span>
-                <span>Exportar somente quando quiser</span>
+                <span>Abre automaticamente após selecionar</span>
+                <span>Salvar não faz download</span>
+                <span>Exportar somente quando quiser baixar</span>
               </div>
 
               {error && <p className="error-message" role="alert">{error}</p>}
