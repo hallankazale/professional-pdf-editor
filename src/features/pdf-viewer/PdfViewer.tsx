@@ -19,6 +19,7 @@ const SCALE_STEP = 0.25;
 
 type PreviewEdit = PdfTextEdit & { id: string };
 type PreviewState = Record<string, PreviewEdit>;
+type SearchResult = { pageNumber: number; occurrences: number };
 
 type PdfViewerProps = {
   file: File;
@@ -52,9 +53,15 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [previewEdits, setPreviewEdits] = useState<PreviewState>({});
   const [undoStack, setUndoStack] = useState<PreviewState[]>([]);
   const [redoStack, setRedoStack] = useState<PreviewState[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchCompleted, setSearchCompleted] = useState(false);
 
   const totalPages = pdfDocument?.numPages ?? 0;
   const editCount = Object.keys(previewEdits).length;
+  const totalOccurrences = searchResults.reduce((total, result) => total + result.occurrences, 0);
   const currentPagePrefix = `${pageNumber}:`;
   const currentPageEdits = Object.fromEntries(
     Object.entries(previewEdits)
@@ -90,6 +97,8 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setPageTextStatus("loading");
       setUndoStack([]);
       setRedoStack([]);
+      setSearchResults([]);
+      setSearchCompleted(false);
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -207,6 +216,49 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     goToPage(parsedPage);
   }
 
+  async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const documentToSearch = pdfDocument;
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase("pt-BR");
+    if (!documentToSearch || !normalizedQuery || isSearching) return;
+
+    setIsSearching(true);
+    setSearchCompleted(false);
+    setSearchResults([]);
+    setError(null);
+
+    try {
+      const results: SearchResult[] = [];
+      for (let pageIndex = 1; pageIndex <= documentToSearch.numPages; pageIndex += 1) {
+        const page = await documentToSearch.getPage(pageIndex);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item) => ("str" in item ? item.str : ""))
+          .join(" ")
+          .toLocaleLowerCase("pt-BR");
+        let occurrences = 0;
+        let position = 0;
+        while ((position = pageText.indexOf(normalizedQuery, position)) !== -1) {
+          occurrences += 1;
+          position += Math.max(normalizedQuery.length, 1);
+        }
+        if (occurrences) results.push({ pageNumber: pageIndex, occurrences });
+      }
+      setSearchResults(results);
+      setSearchCompleted(true);
+    } catch {
+      setError("Não foi possível pesquisar neste PDF.");
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  function closeSearch(): void {
+    setShowSearch(false);
+    setSearchResults([]);
+    setSearchCompleted(false);
+  }
+
   function applyPreview(nextText: string): void {
     if (!selectedItem || !selectedEditKey) return;
 
@@ -300,43 +352,28 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
         </div>
 
         <div className="toolbar-group" aria-label="Histórico">
-          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>
-            Desfazer
-          </button>
-          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>
-            Refazer
-          </button>
+          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>Desfazer</button>
+          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>Refazer</button>
         </div>
 
         <div className="toolbar-group" aria-label="Páginas">
-          <button type="button" className="toolbar-button square-button" disabled={pageNumber <= 1 || isLoading} onClick={() => goToPage(pageNumber - 1)} aria-label="Página anterior">
-            ‹
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={pageNumber <= 1 || isLoading} onClick={() => goToPage(pageNumber - 1)} aria-label="Página anterior">‹</button>
           <form className="page-jump-form" onSubmit={handlePageSubmit}>
             <input className="page-number-input" inputMode="numeric" pattern="[0-9]*" value={pageInput} onChange={(event) => setPageInput(event.target.value.replace(/\D/g, ""))} onBlur={() => setPageInput(String(pageNumber))} disabled={!totalPages || isLoading} aria-label="Página atual" />
             <span className="page-indicator">/ {totalPages || "—"}</span>
           </form>
-          <button type="button" className="toolbar-button square-button" disabled={!totalPages || pageNumber >= totalPages || isLoading} onClick={() => goToPage(pageNumber + 1)} aria-label="Próxima página">
-            ›
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={!totalPages || pageNumber >= totalPages || isLoading} onClick={() => goToPage(pageNumber + 1)} aria-label="Próxima página">›</button>
         </div>
 
         <div className="toolbar-group" aria-label="Zoom">
-          <button type="button" className="toolbar-button square-button" disabled={scale <= MIN_SCALE || isLoading} onClick={() => setScale((current) => Math.max(MIN_SCALE, current - SCALE_STEP))} aria-label="Diminuir zoom">
-            −
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={scale <= MIN_SCALE || isLoading} onClick={() => setScale((current) => Math.max(MIN_SCALE, current - SCALE_STEP))} aria-label="Diminuir zoom">−</button>
           <span className="zoom-indicator">{Math.round(scale * 100)}%</span>
-          <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">
-            +
-          </button>
+          <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
-        <button type="button" className="toolbar-button" onClick={onClose}>
-          Trocar PDF
-        </button>
-        <button type="button" className="primary-action edit-selection-button" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>
-          Editar seleção
-        </button>
+        <button type="button" className="toolbar-button" disabled={!pdfDocument} onClick={() => setShowSearch(true)}>Buscar</button>
+        <button type="button" className="toolbar-button" onClick={onClose}>Trocar PDF</button>
+        <button type="button" className="primary-action edit-selection-button" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>Editar seleção</button>
       </div>
 
       {error && <p className="viewer-error" role="alert">{error}</p>}
@@ -357,6 +394,52 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
             />
           </div>
         </div>
+
+        {showSearch && (
+          <aside className="pdf-search-panel" aria-label="Pesquisar no PDF">
+            <div className="pdf-search-header">
+              <div><span>Pesquisa</span><strong>Buscar no PDF</strong></div>
+              <button type="button" onClick={closeSearch} aria-label="Fechar pesquisa">×</button>
+            </div>
+            <form className="pdf-search-form" onSubmit={(event) => void handleSearch(event)}>
+              <input
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setSearchCompleted(false);
+                }}
+                placeholder="Digite uma palavra..."
+                autoFocus
+                aria-label="Palavra para pesquisar"
+              />
+              <button type="submit" disabled={!searchQuery.trim() || isSearching || !pdfDocument}>
+                {isSearching ? "Buscando…" : "Buscar"}
+              </button>
+            </form>
+            {isSearching && <p className="pdf-search-message">Analisando as páginas…</p>}
+            {searchCompleted && (
+              <p className="pdf-search-summary">
+                {totalOccurrences
+                  ? `${totalOccurrences} ocorrência${totalOccurrences > 1 ? "s" : ""} em ${searchResults.length} página${searchResults.length > 1 ? "s" : ""}.`
+                  : "Nenhuma ocorrência encontrada."}
+              </p>
+            )}
+            <div className="pdf-search-results">
+              {searchResults.map((result) => (
+                <button
+                  key={result.pageNumber}
+                  type="button"
+                  className={result.pageNumber === pageNumber ? "is-current" : ""}
+                  onClick={() => goToPage(result.pageNumber)}
+                >
+                  <span>Página {result.pageNumber}</span>
+                  <small>{result.occurrences} encontrada{result.occurrences > 1 ? "s" : ""}</small>
+                </button>
+              ))}
+            </div>
+            <p className="pdf-search-note">A pesquisa funciona em PDFs com texto. Documentos escaneados podem precisar de OCR.</p>
+          </aside>
+        )}
 
         <PdfInspectorPanel
           selectedItem={selectedItem}
