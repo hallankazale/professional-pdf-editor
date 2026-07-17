@@ -17,8 +17,7 @@ export default function HomePage() {
     setError(null);
     if (!file) return;
 
-    // Abre o editor imediatamente. A validação continua em paralelo e,
-    // caso o arquivo seja inválido, o fluxo retorna à tela inicial com erro.
+    // Mostra o visualizador imediatamente. A validação leve continua em segundo plano.
     setSelectedFile(file);
     setIsValidating(true);
 
@@ -47,7 +46,11 @@ export default function HomePage() {
   return (
     <main className={`app-shell ${selectedFile ? "is-editing" : "is-home"}`}>
       {selectedFile ? (
-        <PdfViewer file={selectedFile} onClose={handleCloseDocument} />
+        <PdfViewer
+          key={`${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`}
+          file={selectedFile}
+          onClose={handleCloseDocument}
+        />
       ) : (
         <>
           <header className="home-header">
