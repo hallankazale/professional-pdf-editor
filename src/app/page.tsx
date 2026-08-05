@@ -17,13 +17,11 @@ export default function HomePage() {
     setError(null);
     if (!file) return;
 
-    // Mostra o visualizador imediatamente. A validação leve continua em segundo plano.
     setSelectedFile(file);
     setIsValidating(true);
 
     try {
       const validation = await validatePdfFile(file);
-
       if (!validation.isValid) {
         setSelectedFile(null);
         setError(validation.message);
@@ -43,60 +41,72 @@ export default function HomePage() {
     setError(null);
   }
 
-  return (
-    <main className={`app-shell ${selectedFile ? "is-editing" : "is-home"}`}>
-      {selectedFile ? (
+  if (selectedFile) {
+    return (
+      <main className="app-shell is-editing">
         <PdfViewer
           key={`${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`}
           file={selectedFile}
           onClose={handleCloseDocument}
         />
-      ) : (
-        <>
-          <header className="home-header">
-            <div className="brand-mark" aria-hidden="true">P</div>
-            <div>
-              <span className="eyebrow">Editor mobile</span>
-              <h1>Professional PDF Editor</h1>
-            </div>
-          </header>
+      </main>
+    );
+  }
 
-          <section className="workspace" aria-labelledby="upload-title">
-            <div className="upload-card">
-              <div className="upload-hero">
-                <span className="document-icon" aria-hidden="true">PDF</span>
-                <span className="privacy-badge">Processamento local</span>
+  return (
+    <main className="home-shell">
+      <header className="home-topbar">
+        <div className="home-brand">
+          <div className="home-brand-mark" aria-hidden="true">P</div>
+          <div className="home-brand-copy">
+            <span>Editor mobile</span>
+            <strong>Professional PDF</strong>
+          </div>
+        </div>
+        <span className="home-security">● Privado</span>
+      </header>
+
+      <section className="home-main" aria-labelledby="home-title">
+        <div className="home-hero">
+          <div className="home-copy">
+            <span className="home-kicker">PDF no seu celular</span>
+            <h1 id="home-title">Edite sem enviar seus documentos.</h1>
+            <p>
+              Abra, revise e baixe o PDF diretamente no aparelho. Rápido, simples e com processamento local.
+            </p>
+          </div>
+
+          <div className="home-upload-card">
+            <div className="home-dropzone">
+              <span className="home-pdf-icon" aria-hidden="true">PDF</span>
+              <div className="home-drop-copy">
+                <strong>Escolha seu documento</strong>
+                <span>PDF de até 50 MB. Ele abre automaticamente no editor.</span>
               </div>
-
-              <h2 id="upload-title">Abra e edite seu PDF</h2>
-              <p>
-                Toque em selecionar e o documento abrirá imediatamente no editor.
-                Exportar serve apenas para baixar o PDF final.
-              </p>
-
-              <label className="primary-button upload-action" htmlFor="pdf-file" aria-disabled={isValidating}>
-                {isValidating ? "Abrindo PDF…" : "Selecionar PDF"}
-              </label>
-              <input
-                id="pdf-file"
-                className="visually-hidden"
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={(event) => void handleFileSelection(event)}
-                disabled={isValidating}
-              />
-
-              <div className="home-benefits" aria-label="Benefícios">
-                <span>Abre automaticamente após selecionar</span>
-                <span>Salvar não faz download</span>
-                <span>Exportar somente quando quiser baixar</span>
-              </div>
-
-              {error && <p className="error-message" role="alert">{error}</p>}
             </div>
-          </section>
-        </>
-      )}
+
+            <label className="home-select-button" htmlFor="pdf-file" aria-disabled={isValidating}>
+              {isValidating ? "Abrindo documento…" : "Abrir PDF"}
+            </label>
+            <input
+              id="pdf-file"
+              className="visually-hidden"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) => void handleFileSelection(event)}
+              disabled={isValidating}
+            />
+
+            <div className="home-proof" aria-label="Recursos principais">
+              <div><strong>Local</strong><span>Não envia o arquivo</span></div>
+              <div><strong>Rápido</strong><span>Abre em segundos</span></div>
+              <div><strong>Seguro</strong><span>Original preservado</span></div>
+            </div>
+
+            {error && <p className="home-error" role="alert">{error}</p>}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
