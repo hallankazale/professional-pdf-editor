@@ -11,6 +11,7 @@ import {
 } from "@/core/session/pdf-edit-session";
 import { PdfInspectorPanel } from "./PdfInspectorPanel";
 import { PdfTextLayer } from "./PdfTextLayer";
+import { PdfThumbnailSidebar } from "./PdfThumbnailSidebar";
 import type { InspectedTextItem, PdfPageTextStatus } from "./pdf-inspector.types";
 
 const MIN_SCALE = 0.5;
@@ -54,6 +55,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [undoStack, setUndoStack] = useState<PreviewState[]>([]);
   const [redoStack, setRedoStack] = useState<PreviewState[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showThumbnails, setShowThumbnails] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -99,6 +101,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setRedoStack([]);
       setSearchResults([]);
       setSearchCompleted(false);
+      setShowThumbnails(false);
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -204,6 +207,13 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     const normalizedPage = Math.min(totalPages, Math.max(1, nextPage));
     setPageNumber(normalizedPage);
     setPageInput(String(normalizedPage));
+  }
+
+  function selectThumbnailPage(nextPage: number): void {
+    goToPage(nextPage);
+    if (globalThis.matchMedia?.("(max-width: 900px)").matches) {
+      setShowThumbnails(false);
+    }
   }
 
   function handlePageSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -371,6 +381,15 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
+        <button
+          type="button"
+          className="toolbar-button"
+          disabled={!pdfDocument}
+          aria-expanded={showThumbnails}
+          onClick={() => setShowThumbnails((current) => !current)}
+        >
+          Páginas
+        </button>
         <button type="button" className="toolbar-button" disabled={!pdfDocument} onClick={() => setShowSearch(true)}>Buscar</button>
         <button type="button" className="toolbar-button" onClick={onClose}>Trocar PDF</button>
         <button type="button" className="primary-action edit-selection-button" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>Editar seleção</button>
@@ -380,6 +399,14 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       {statusMessage && <p className="viewer-status" role="status">{statusMessage}</p>}
 
       <div className="editor-content">
+        {showThumbnails && pdfDocument && (
+          <PdfThumbnailSidebar
+            document={pdfDocument}
+            activePage={pageNumber}
+            onSelectPage={selectThumbnailPage}
+          />
+        )}
+
         <div className="document-stage">
           {isLoading && <div className="loading-overlay" role="status">Processando página…</div>}
           <div className="pdf-page-stack">
