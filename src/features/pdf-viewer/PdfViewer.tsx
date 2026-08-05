@@ -9,6 +9,7 @@ import {
   savePdfEditSession,
   type StoredPdfEditState,
 } from "@/core/session/pdf-edit-session";
+import { MobileEditorMenu } from "./MobileEditorMenu";
 import { PdfInspectorPanel } from "./PdfInspectorPanel";
 import { PdfTextLayer } from "./PdfTextLayer";
 import { PdfThumbnailSidebar } from "./PdfThumbnailSidebar";
@@ -22,10 +23,7 @@ type PreviewEdit = PdfTextEdit & { id: string };
 type PreviewState = Record<string, PreviewEdit>;
 type SearchResult = { pageNumber: number; occurrences: number };
 
-type PdfViewerProps = {
-  file: File;
-  onClose: () => void;
-};
+type PdfViewerProps = { file: File; onClose: () => void };
 
 function clonePreviewState(state: PreviewState): PreviewState {
   return Object.fromEntries(
@@ -54,6 +52,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   const [previewEdits, setPreviewEdits] = useState<PreviewState>({});
   const [undoStack, setUndoStack] = useState<PreviewState[]>([]);
   const [redoStack, setRedoStack] = useState<PreviewState[]>([]);
+  const [showMenu, setShowMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showThumbnails, setShowThumbnails] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,9 +70,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       .map(([key, value]) => [key.slice(currentPagePrefix.length), value.text]),
   );
   const selectedEditKey = selectedItem ? `${pageNumber}:${selectedItem.id}` : null;
-  const selectedPreviewText = selectedEditKey
-    ? previewEdits[selectedEditKey]?.text ?? null
-    : null;
+  const selectedPreviewText = selectedEditKey ? previewEdits[selectedEditKey]?.text ?? null : null;
 
   const handlePageStatusChange = useCallback((status: PdfPageTextStatus) => {
     setPageTextStatus(status);
@@ -82,9 +79,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
   useEffect(() => {
     const restoredEdits = loadPdfEditSession(file) as PreviewState;
     setPreviewEdits(restoredEdits);
-    setStatusMessage(
-      Object.keys(restoredEdits).length ? "Edições salvas restauradas." : null,
-    );
+    setStatusMessage(Object.keys(restoredEdits).length ? "Edições salvas restauradas." : null);
   }, [file]);
 
   useEffect(() => {
@@ -101,6 +96,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
       setRedoStack([]);
       setSearchResults([]);
       setSearchCompleted(false);
+      setShowMenu(false);
       setShowThumbnails(false);
 
       try {
@@ -109,15 +105,12 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           "pdfjs-dist/build/pdf.worker.min.mjs",
           import.meta.url,
         ).toString();
-
         const bytes = new Uint8Array(await file.arrayBuffer());
         const loadedDocument = await pdfjs.getDocument({ data: bytes }).promise;
-
         if (cancelled) {
           await loadedDocument.destroy();
           return;
         }
-
         openedDocument = loadedDocument;
         setPdfDocument(loadedDocument);
         setPageNumber(1);
@@ -130,7 +123,6 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     }
 
     void loadDocument();
-
     return () => {
       cancelled = true;
       renderTaskRef.current?.cancel();
@@ -142,52 +134,35 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     const documentToRender = pdfDocument;
     const canvasToRender = canvasRef.current;
     if (!documentToRender || !canvasToRender) return;
-
     let cancelled = false;
 
-    async function renderPage(
-      safeDocument: PDFDocumentProxy,
-      safeCanvas: HTMLCanvasElement,
-    ): Promise<void> {
+    async function renderPage(document: PDFDocumentProxy, canvas: HTMLCanvasElement): Promise<void> {
       try {
         setIsLoading(true);
         setError(null);
         setSelectedItem(null);
         setPageTextStatus("loading");
         renderTaskRef.current?.cancel();
-
-        const page = await safeDocument.getPage(pageNumber);
+        const page = await document.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
         if (cancelled) return;
-
-        const context = safeCanvas.getContext("2d", { alpha: false });
+        const context = canvas.getContext("2d", { alpha: false });
         if (!context) throw new Error("Canvas indisponível");
-
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-        safeCanvas.width = Math.floor(viewport.width * pixelRatio);
-        safeCanvas.height = Math.floor(viewport.height * pixelRatio);
-        safeCanvas.style.width = `${Math.floor(viewport.width)}px`;
-        safeCanvas.style.height = `${Math.floor(viewport.height)}px`;
-
+        canvas.width = Math.floor(viewport.width * pixelRatio);
+        canvas.height = Math.floor(viewport.height * pixelRatio);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
         const renderTask = page.render({
           canvasContext: context,
           viewport,
-          transform:
-            pixelRatio === 1
-              ? undefined
-              : [pixelRatio, 0, 0, pixelRatio, 0, 0],
+          transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
         });
-
         renderTaskRef.current = renderTask;
         await renderTask.promise;
         if (!cancelled) setActivePage(page);
       } catch (renderError) {
-        if (
-          renderError instanceof Error &&
-          renderError.name === "RenderingCancelledException"
-        ) {
-          return;
-        }
+        if (renderError instanceof Error && renderError.name === "RenderingCancelledException") return;
         setError("Ocorreu um erro ao renderizar esta página.");
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -195,12 +170,17 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     }
 
     void renderPage(documentToRender, canvasToRender);
-
     return () => {
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
   }, [pdfDocument, pageNumber, scale]);
+
+  function closeOverlays(): void {
+    setShowMenu(false);
+    setShowSearch(false);
+    setShowThumbnails(false);
+  }
 
   function goToPage(nextPage: number): void {
     if (!totalPages) return;
@@ -211,9 +191,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
   function selectThumbnailPage(nextPage: number): void {
     goToPage(nextPage);
-    if (globalThis.matchMedia?.("(max-width: 900px)").matches) {
-      setShowThumbnails(false);
-    }
+    if (globalThis.matchMedia?.("(max-width: 900px)").matches) setShowThumbnails(false);
   }
 
   function handlePageSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -228,19 +206,16 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
   async function handleSearch(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const documentToSearch = pdfDocument;
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("pt-BR");
-    if (!documentToSearch || !normalizedQuery || isSearching) return;
-
+    if (!pdfDocument || !normalizedQuery || isSearching) return;
     setIsSearching(true);
     setSearchCompleted(false);
     setSearchResults([]);
     setError(null);
-
     try {
       const results: SearchResult[] = [];
-      for (let pageIndex = 1; pageIndex <= documentToSearch.numPages; pageIndex += 1) {
-        const page = await documentToSearch.getPage(pageIndex);
+      for (let pageIndex = 1; pageIndex <= pdfDocument.numPages; pageIndex += 1) {
+        const page = await pdfDocument.getPage(pageIndex);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
           .map((item) => ("str" in item ? item.str : ""))
@@ -263,23 +238,15 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     }
   }
 
-  function closeSearch(): void {
-    setShowSearch(false);
-    setSearchResults([]);
-    setSearchCompleted(false);
-  }
-
   function applyPreview(nextText: string): void {
     if (!selectedItem || !selectedEditKey) return;
-
     setStatusMessage(null);
     setUndoStack((current) => [...current, clonePreviewState(previewEdits)]);
     setRedoStack([]);
     setPreviewEdits((current) => {
       const next = { ...current };
-      if (nextText === selectedItem.text) {
-        delete next[selectedEditKey];
-      } else {
+      if (nextText === selectedItem.text) delete next[selectedEditKey];
+      else {
         next[selectedEditKey] = {
           id: selectedEditKey,
           pageNumber,
@@ -312,11 +279,7 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
 
   function handleSaveSession(): void {
     savePdfEditSession(file, previewEdits as StoredPdfEditState);
-    setStatusMessage(
-      editCount
-        ? `${editCount} edição(ões) salvas no aparelho.`
-        : "Sessão salva sem alterações.",
-    );
+    setStatusMessage(editCount ? `${editCount} edição(ões) salvas no aparelho.` : "Sessão salva sem alterações.");
   }
 
   async function handleExportEdits(): Promise<void> {
@@ -324,7 +287,6 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     setIsExporting(true);
     setError(null);
     setStatusMessage(null);
-
     try {
       await exportEditedPdf(file, Object.values(previewEdits));
       setStatusMessage("PDF exportado para a pasta de downloads.");
@@ -335,35 +297,30 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
     }
   }
 
+  function focusSelectedText(): void {
+    globalThis.document.getElementById("preview-text")?.focus();
+  }
+
   return (
     <section className="editor-shell" aria-label="Editor de PDF">
       <div className="editor-toolbar">
+        <button
+          type="button"
+          className="mobile-menu-trigger"
+          aria-label="Abrir menu"
+          aria-expanded={showMenu}
+          onClick={() => {
+            setShowSearch(false);
+            setShowThumbnails(false);
+            setShowMenu((current) => !current);
+          }}
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+
         <div className="file-summary" title={file.name}>
           <strong>{file.name}</strong>
-          <span>
-            {totalPages
-              ? `${totalPages} página${totalPages > 1 ? "s" : ""}`
-              : "Carregando…"}
-          </span>
-        </div>
-
-        <div className="mobile-primary-actions">
-          <button type="button" className="toolbar-button" onClick={handleSaveSession}>
-            Salvar{editCount ? ` (${editCount})` : ""}
-          </button>
-          <button
-            type="button"
-            className="primary-action"
-            disabled={isExporting}
-            onClick={() => void handleExportEdits()}
-          >
-            {isExporting ? "Exportando…" : "Exportar"}
-          </button>
-        </div>
-
-        <div className="toolbar-group" aria-label="Histórico">
-          <button type="button" className="toolbar-button" disabled={!undoStack.length} onClick={undo}>Desfazer</button>
-          <button type="button" className="toolbar-button" disabled={!redoStack.length} onClick={redo}>Refazer</button>
+          <span>Página {pageNumber} de {totalPages || "—"}</span>
         </div>
 
         <div className="toolbar-group" aria-label="Páginas">
@@ -381,30 +338,39 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           <button type="button" className="toolbar-button square-button" disabled={scale >= MAX_SCALE || isLoading} onClick={() => setScale((current) => Math.min(MAX_SCALE, current + SCALE_STEP))} aria-label="Aumentar zoom">+</button>
         </div>
 
-        <button
-          type="button"
-          className="toolbar-button"
-          disabled={!pdfDocument}
-          aria-expanded={showThumbnails}
-          onClick={() => setShowThumbnails((current) => !current)}
-        >
-          Páginas
-        </button>
-        <button type="button" className="toolbar-button" disabled={!pdfDocument} onClick={() => setShowSearch(true)}>Buscar</button>
-        <button type="button" className="toolbar-button" onClick={onClose}>Trocar PDF</button>
-        <button type="button" className="primary-action edit-selection-button" disabled={!selectedItem} onClick={() => globalThis.document.getElementById("preview-text")?.focus()}>Editar seleção</button>
+        <div className="mobile-primary-actions">
+          <button type="button" className="toolbar-button" onClick={handleSaveSession} aria-label="Salvar sessão">
+            {editCount ? `Salvar (${editCount})` : "Salvar"}
+          </button>
+          <button type="button" className="primary-action" disabled={isExporting} onClick={() => void handleExportEdits()}>
+            {isExporting ? "Exportando…" : "Baixar PDF"}
+          </button>
+        </div>
       </div>
+
+      <MobileEditorMenu
+        isOpen={showMenu}
+        canUndo={Boolean(undoStack.length)}
+        canRedo={Boolean(redoStack.length)}
+        hasSelection={Boolean(selectedItem)}
+        onClose={() => setShowMenu(false)}
+        onOpenPages={() => setShowThumbnails(true)}
+        onOpenSearch={() => setShowSearch(true)}
+        onEditSelection={focusSelectedText}
+        onUndo={undo}
+        onRedo={redo}
+        onChangePdf={() => {
+          closeOverlays();
+          onClose();
+        }}
+      />
 
       {error && <p className="viewer-error" role="alert">{error}</p>}
       {statusMessage && <p className="viewer-status" role="status">{statusMessage}</p>}
 
       <div className="editor-content">
         {showThumbnails && pdfDocument && (
-          <PdfThumbnailSidebar
-            document={pdfDocument}
-            activePage={pageNumber}
-            onSelectPage={selectThumbnailPage}
-          />
+          <PdfThumbnailSidebar document={pdfDocument} activePage={pageNumber} onSelectPage={selectThumbnailPage} />
         )}
 
         <div className="document-stage">
@@ -426,39 +392,21 @@ export function PdfViewer({ file, onClose }: PdfViewerProps) {
           <aside className="pdf-search-panel" aria-label="Pesquisar no PDF">
             <div className="pdf-search-header">
               <div><span>Pesquisa</span><strong>Buscar no PDF</strong></div>
-              <button type="button" onClick={closeSearch} aria-label="Fechar pesquisa">×</button>
+              <button type="button" onClick={() => setShowSearch(false)} aria-label="Fechar pesquisa">×</button>
             </div>
             <form className="pdf-search-form" onSubmit={(event) => void handleSearch(event)}>
-              <input
-                value={searchQuery}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  setSearchCompleted(false);
-                }}
-                placeholder="Digite uma palavra..."
-                autoFocus
-                aria-label="Palavra para pesquisar"
-              />
-              <button type="submit" disabled={!searchQuery.trim() || isSearching || !pdfDocument}>
-                {isSearching ? "Buscando…" : "Buscar"}
-              </button>
+              <input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearchCompleted(false); }} placeholder="Digite uma palavra..." autoFocus aria-label="Palavra para pesquisar" />
+              <button type="submit" disabled={!searchQuery.trim() || isSearching || !pdfDocument}>{isSearching ? "Buscando…" : "Buscar"}</button>
             </form>
             {isSearching && <p className="pdf-search-message">Analisando as páginas…</p>}
             {searchCompleted && (
               <p className="pdf-search-summary">
-                {totalOccurrences
-                  ? `${totalOccurrences} ocorrência${totalOccurrences > 1 ? "s" : ""} em ${searchResults.length} página${searchResults.length > 1 ? "s" : ""}.`
-                  : "Nenhuma ocorrência encontrada."}
+                {totalOccurrences ? `${totalOccurrences} ocorrência${totalOccurrences > 1 ? "s" : ""} em ${searchResults.length} página${searchResults.length > 1 ? "s" : ""}.` : "Nenhuma ocorrência encontrada."}
               </p>
             )}
             <div className="pdf-search-results">
               {searchResults.map((result) => (
-                <button
-                  key={result.pageNumber}
-                  type="button"
-                  className={result.pageNumber === pageNumber ? "is-current" : ""}
-                  onClick={() => goToPage(result.pageNumber)}
-                >
+                <button key={result.pageNumber} type="button" className={result.pageNumber === pageNumber ? "is-current" : ""} onClick={() => { goToPage(result.pageNumber); setShowSearch(false); }}>
                   <span>Página {result.pageNumber}</span>
                   <small>{result.occurrences} encontrada{result.occurrences > 1 ? "s" : ""}</small>
                 </button>
