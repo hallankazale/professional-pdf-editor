@@ -4,6 +4,14 @@ export type StoredPdfEdit = PdfTextEdit & { id: string };
 export type StoredPdfEditState = Record<string, StoredPdfEdit>;
 
 const STORAGE_PREFIX = "professional-pdf-editor:session:";
+const SESSION_VERSION = 1;
+const MAX_STORED_SESSIONS = 12;
+
+type StoredSessionPayload = {
+  version: number;
+  savedAt: string;
+  edits: StoredPdfEditState;
+};
 
 function createFileIdentity(file: File): string {
   return [file.name, file.size, file.lastModified].join(":");
@@ -23,34 +31,77 @@ function getStorage(): Storage | null {
   }
 }
 
-export function savePdfEditSession(file: File, edits: StoredPdfEditState): void {
-  const storage = getStorage();
-  if (!storage) return;
+function removeOldSessions(storage: Storage): void {
+  const sessions: Array<{ key: string; savedAt: number }> = [];
 
-  const payload = {
-    version: 1,
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key?.startsWith(STORAGE_PREFIX)) continue;
+
+    try {
+      const payload = JSON.parse(storage.getItem(key) ?? "") as Partial<StoredSessionPayload>;
+      sessions.push({
+        key,
+        savedAt: payload.savedAt ? Date.parse(payload.savedAt) : 0,
+      });
+    } catch {
+      storage.removeItem(key);
+    }
+  }
+
+  sessions
+    .sort((left, right) => right.savedAt - left.savedAt)
+    .slice(MAX_STORED_SESSIONS)
+    .forEach(({ key }) => storage.removeItem(key));
+}
+
+/**
+ * Salva somente o estado leve das edições. O arquivo PDF permanece no aparelho
+ * e nunca é serializado no localStorage.
+ */
+export function savePdfEditSession(file: File, edits: StoredPdfEditState): boolean {
+  const storage = getStorage();
+  if (!storage) return false;
+
+  const payload: StoredSessionPayload = {
+    version: SESSION_VERSION,
     savedAt: new Date().toISOString(),
     edits,
   };
 
-  storage.setItem(createStorageKey(file), JSON.stringify(payload));
+  try {
+    storage.setItem(createStorageKey(file), JSON.stringify(payload));
+    removeOldSessions(storage);
+    return true;
+  } catch {
+    // Navegadores móveis podem bloquear ou esgotar a cota de armazenamento.
+    return false;
+  }
 }
 
 export function loadPdfEditSession(file: File): StoredPdfEditState {
   const storage = getStorage();
   if (!storage) return {};
 
-  const rawValue = storage.getItem(createStorageKey(file));
-  if (!rawValue) return {};
-
   try {
-    const parsed = JSON.parse(rawValue) as { version?: number; edits?: StoredPdfEditState };
-    return parsed.version === 1 && parsed.edits ? parsed.edits : {};
+    const rawValue = storage.getItem(createStorageKey(file));
+    if (!rawValue) return {};
+
+    const parsed = JSON.parse(rawValue) as Partial<StoredSessionPayload>;
+    return parsed.version === SESSION_VERSION && parsed.edits ? parsed.edits : {};
   } catch {
     return {};
   }
 }
 
-export function clearPdfEditSession(file: File): void {
-  getStorage()?.removeItem(createStorageKey(file));
+export function clearPdfEditSession(file: File): boolean {
+  const storage = getStorage();
+  if (!storage) return false;
+
+  try {
+    storage.removeItem(createStorageKey(file));
+    return true;
+  } catch {
+    return false;
+  }
 }
