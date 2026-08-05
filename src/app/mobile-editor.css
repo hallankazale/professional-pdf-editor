@@ -1,0 +1,289 @@
+/* Mobile-first UX layer. Mantém o motor PDF desacoplado da apresentação. */
+:root {
+  --mobile-bar-height: 76px;
+  --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --surface-strong: rgba(8, 15, 30, 0.98);
+  --surface-soft: rgba(15, 23, 42, 0.94);
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --success: #16a34a;
+}
+
+button,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  .editor-shell {
+    width: 100%;
+    max-width: none;
+  }
+
+  .editor-shell {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    padding-bottom: calc(var(--mobile-bar-height) + var(--mobile-safe-bottom));
+    background: #111827;
+  }
+
+  .editor-toolbar {
+    position: relative;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--surface-strong);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .file-summary {
+    grid-column: 1;
+    min-width: 0;
+    padding: 2px 0;
+  }
+
+  .file-summary strong {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .file-summary span {
+    margin-top: 3px;
+    color: #94a3b8;
+    font-size: 0.72rem;
+  }
+
+  /* O bloco original vira a barra principal fixa do celular. */
+  .mobile-primary-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.45fr);
+    gap: 10px;
+    width: 100%;
+    min-height: var(--mobile-bar-height);
+    margin: 0;
+    padding: 10px 12px calc(10px + var(--mobile-safe-bottom));
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(8, 15, 30, 0.96);
+    box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-primary-actions .toolbar-button,
+  .mobile-primary-actions .primary-action {
+    min-height: 54px;
+    border-radius: 15px;
+    font-size: 0.95rem;
+    font-weight: 850;
+  }
+
+  .mobile-primary-actions .toolbar-button {
+    border-color: rgba(148, 163, 184, 0.32);
+    background: rgba(30, 41, 59, 0.96);
+  }
+
+  .mobile-primary-actions .primary-action {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--success), #15803d);
+    box-shadow: 0 12px 28px rgba(22, 163, 74, 0.32);
+    font-size: 0;
+  }
+
+  .mobile-primary-actions .primary-action::before {
+    content: "↓";
+    margin-right: 8px;
+    font-size: 1.15rem;
+    font-weight: 900;
+  }
+
+  .mobile-primary-actions .primary-action::after {
+    content: "Baixar PDF";
+    font-size: 0.98rem;
+  }
+
+  .mobile-primary-actions .primary-action:disabled::after {
+    content: "Preparando PDF…";
+  }
+
+  .editor-toolbar > .toolbar-group[aria-label="Páginas"],
+  .editor-toolbar > .toolbar-group[aria-label="Zoom"] {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 0;
+  }
+
+  .editor-toolbar > .toolbar-group[aria-label="Páginas"] {
+    order: 3;
+  }
+
+  .editor-toolbar > .toolbar-group[aria-label="Zoom"] {
+    order: 4;
+  }
+
+  .toolbar-group .square-button {
+    width: 48px;
+    min-height: 46px;
+    border-radius: 13px;
+    font-size: 1.35rem;
+  }
+
+  .page-jump-form {
+    justify-content: center;
+    min-height: 46px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 13px;
+    background: rgba(30, 41, 59, 0.7);
+  }
+
+  .page-number-input {
+    width: 52px;
+    min-height: 38px;
+    border: 0;
+    background: transparent;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .page-indicator,
+  .zoom-indicator {
+    min-width: 64px;
+    color: #cbd5e1;
+    font-size: 0.86rem;
+    font-weight: 750;
+  }
+
+  .editor-toolbar > button.toolbar-button {
+    order: 5;
+    min-height: 44px;
+    border-radius: 12px;
+    padding-inline: 14px;
+    font-size: 0.82rem;
+  }
+
+  .editor-toolbar > button.toolbar-button:nth-of-type(1) {
+    grid-column: 1;
+  }
+
+  .editor-toolbar > button.toolbar-button:nth-of-type(2) {
+    grid-column: 2;
+  }
+
+  .editor-toolbar > button.toolbar-button:nth-of-type(3) {
+    grid-column: 1 / -1;
+  }
+
+  .editor-content {
+    background: #1e293b;
+  }
+
+  .document-stage {
+    inset: 0;
+    padding: 14px 8px 30px;
+    scroll-padding: 16px;
+    background:
+      linear-gradient(rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0.18)),
+      #334155;
+  }
+
+  .pdf-page-stack {
+    max-width: 100%;
+    border-radius: 5px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+    zoom: 0.72;
+  }
+
+  .viewer-error,
+  .viewer-status {
+    position: relative;
+    z-index: 14;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .loading-overlay {
+    z-index: 60;
+    padding-bottom: calc(var(--mobile-bar-height) + 24px);
+  }
+
+  .pdf-search-panel,
+  .inspector-panel,
+  .pdf-thumbnail-sidebar {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + var(--mobile-bar-height) + var(--mobile-safe-bottom));
+    max-height: min(68dvh, 620px);
+    border-radius: 22px;
+  }
+
+  .pdf-search-header button,
+  .inspector-close,
+  .pdf-thumbnail-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .preview-edit-form textarea,
+  .pdf-search-form input {
+    font-size: 16px; /* evita zoom automático do Safari/Chrome móvel */
+  }
+
+  .preview-edit-form button,
+  .pdf-search-form button {
+    min-height: 48px;
+    border-radius: 13px;
+  }
+
+  .pdf-text-item {
+    min-width: 8px;
+    min-height: 8px;
+  }
+
+  .pdf-text-item.is-selected {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.48);
+  }
+}
+
+@media (max-width: 380px) {
+  .editor-toolbar {
+    padding-inline: 8px;
+  }
+
+  .mobile-primary-actions {
+    padding-inline: 8px;
+  }
+
+  .mobile-primary-actions .toolbar-button,
+  .mobile-primary-actions .primary-action {
+    font-size: 0.86rem;
+  }
+
+  .mobile-primary-actions .primary-action::after {
+    font-size: 0.9rem;
+  }
+
+  .pdf-page-stack {
+    zoom: 0.62;
+  }
+}
+
+@media (min-width: 901px) {
+  .mobile-primary-actions .primary-action {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  }
+}
