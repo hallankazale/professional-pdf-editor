@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { NativeAppSetup } from "./NativeAppSetup";
 import "./globals.css";
 import "./home-redesign.css";
 import "./mobile-editor.css";
@@ -22,7 +23,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <NativeAppSetup />
+        {children}
+      </body>
     </html>
   );
 }
