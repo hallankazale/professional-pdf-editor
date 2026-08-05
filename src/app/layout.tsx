@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./home-redesign.css";
 import "./mobile-editor.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#08101e",
+  themeColor: "#050b14",
 };
 
 export default function RootLayout({
