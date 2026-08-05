@@ -1,16 +1,24 @@
 {
   "name": "professional-pdf-editor",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:android:web": "cross-env CAPACITOR_BUILD=true next build",
+    "android:add": "npx cap add android",
+    "android:sync": "npm run build:android:web && npx cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
+    "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/share": "^7.0.0",
     "next": "15.4.1",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "5.3.31",
@@ -19,11 +27,13 @@
     "zustand": "5.0.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.8",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
     "@types/node": "24.0.14",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
+    "cross-env": "7.0.3",
     "eslint": "9.31.0",
     "eslint-config-next": "15.4.1",
     "typescript": "5.8.3",

@@ -11,6 +11,7 @@ import {
 
 import type { InspectedTextItem, PdfRgbColor } from "@/features/pdf-viewer/pdf-inspector.types";
 import { createEditedPdfFilename } from "./download-pdf-copy";
+import { savePdfOutput } from "./save-pdf-output";
 
 export type PdfTextEdit = {
   pageNumber: number;
@@ -89,8 +90,6 @@ function fitTextToWidth(
   const measuredWidth = Math.max(0.01, font.widthOfTextAtSize(text, preferredSize));
   const desiredScale = availableWidth / measuredWidth;
 
-  // A compressão horizontal mantém a altura e o peso visual mais próximos do original.
-  // Para textos rotacionados, mantemos a transformação simples para não deslocar a posição.
   if (Math.abs(angle) < 0.1 && desiredScale >= MIN_HORIZONTAL_SCALE) {
     return {
       fontSize: preferredSize,
@@ -117,10 +116,6 @@ function safeColor(color: PdfRgbColor | undefined, fallback: PdfRgbColor): PdfRg
   };
 }
 
-/**
- * Substitui visualmente o texto mantendo posição, rotação, tamanho, estilo,
- * cores e largura aproximada da área original.
- */
 export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise<void> {
   const sourceBytes = await file.arrayBuffer();
   const pdfDocument = await PDFDocument.load(sourceBytes, { ignoreEncryption: false });
@@ -179,19 +174,6 @@ export async function exportEditedPdf(file: File, edits: PdfTextEdit[]): Promise
     }
   }
 
-  const outputBytes = await pdfDocument.save();
-  const browserSafeBytes = new Uint8Array(outputBytes);
-  const blob = new Blob([browserSafeBytes], { type: "application/pdf" });
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = globalThis.document.createElement("a");
-
-  anchor.href = objectUrl;
-  anchor.download = createEditedPdfFilename(file.name);
-  anchor.rel = "noopener";
-  anchor.style.display = "none";
-  globalThis.document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-
-  globalThis.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+  const outputBytes = new Uint8Array(await pdfDocument.save());
+  await savePdfOutput(outputBytes, createEditedPdfFilename(file.name));
 }
