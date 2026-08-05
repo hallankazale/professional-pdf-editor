@@ -1,0 +1,32 @@
+/* Ajustes exclusivos do aplicativo nativo. O site continua sem espaçamento extra. */
+@media (max-width: 900px) {
+  html.is-native-app {
+    --native-safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  html.is-native-app body {
+    background: #050b14;
+  }
+
+  html.is-native-app .editor-toolbar {
+    padding-top: calc(7px + var(--native-safe-top));
+  }
+
+  html.is-native-app .mobile-editor-menu {
+    padding-top: calc(14px + var(--native-safe-top));
+  }
+
+  html.is-native-app .home-shell {
+    padding-top: var(--native-safe-top);
+  }
+
+  /* Evita que o nome longo dispute espaço com o botão de menu. */
+  html.is-native-app .file-summary {
+    padding-right: 8px;
+  }
+
+  html.is-native-app .file-summary strong {
+    display: block;
+    max-width: 100%;
+  }
+}
