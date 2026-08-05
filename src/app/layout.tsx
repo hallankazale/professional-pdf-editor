@@ -3,6 +3,7 @@ import { NativeAppSetup } from "./NativeAppSetup";
 import "./globals.css";
 import "./home-redesign.css";
 import "./mobile-editor.css";
+import "./native-android.css";
 
 export const metadata: Metadata = {
   title: "Professional PDF Editor",
